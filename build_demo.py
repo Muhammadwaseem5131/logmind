@@ -24,6 +24,45 @@ LIVE_LINK = (
     ' title="Live monitoring runs on your own machine">Get it on GitHub</a>')
 
 
+NOT_FOUND = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LogMind - page not here</title>
+<style>
+:root{color-scheme:light dark;--bg:#F6F7F9;--card:#fff;--ink:#16202E;
+ --muted:#576678;--rule:#D8DEE7;--link:#1D4ED8}
+@media (prefers-color-scheme:dark){:root{--bg:#0A0F17;--card:#121A26;
+ --ink:#E8EEF6;--muted:#93A3B8;--rule:#26313F;--link:#8AB4FF}}
+body{margin:0;background:var(--bg);color:var(--ink);display:grid;
+ place-items:center;min-height:100vh;padding:24px;
+ font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:56ch;background:var(--card);border:1px solid var(--rule);
+ border-radius:10px;padding:32px}
+h1{margin:0 0 8px;font-size:24px}
+p{margin:0 0 16px;color:var(--muted)}
+code{font:14px ui-monospace,Consolas,monospace;background:var(--bg);
+ padding:2px 6px;border-radius:4px;color:var(--ink)}
+a{color:var(--link)}
+.row{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+.btn{display:inline-block;padding:10px 16px;border-radius:6px;
+ background:var(--link);color:#fff;text-decoration:none;font-weight:500}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--rule)}
+</style></head><body><main>
+<h1>That page lives on your own machine</h1>
+<p>Live monitoring watches the logs of the computer LogMind is running on, so
+it only exists while the tool is running locally. This site is a static
+snapshot of three analysed reports.</p>
+<p>To get live monitoring, clone the repository and run
+<code>python logmind.py --live</code> — or double-click <code>start.bat</code>
+on Windows.</p>
+<div class="row">
+  <a class="btn" href="/logmind/">See the analysed reports</a>
+  <a class="btn ghost" href="https://github.com/Muhammadwaseem5131/logmind">Get it on GitHub</a>
+</div>
+</main></body></html>
+"""
+
+
 def build():
     tpl = open(os.path.join(HERE, "ui.html"), encoding="utf-8").read()
     tpl = re.sub(r"<!--FORM-->.*?<!--/FORM-->", NOTE, tpl, flags=re.S)
@@ -59,6 +98,11 @@ def build():
     assert out.count('id="reportJson"') == 0, "export payloads leaked in"
     path = os.path.join(HERE, "demo.html")
     open(path, "w", encoding="utf-8").write(out)
+
+    # GitHub Pages serves 404.html for any unknown path. Someone arriving with
+    # a cached copy of an older page - or a bookmarked /live - lands here
+    # instead of a dead end.
+    open(os.path.join(HERE, "404.html"), "w", encoding="utf-8").write(NOT_FOUND)
     print(f"wrote {path}  ({len(out):,} bytes, {len(blocks)} reports)")
     return path
 

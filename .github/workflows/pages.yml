@@ -42,6 +42,7 @@ jobs:
           python build_demo.py
           mkdir -p _site
           cp demo.html _site/index.html
+          cp 404.html _site/404.html
 
       - uses: actions/configure-pages@v5
         with:
