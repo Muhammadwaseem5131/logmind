@@ -216,6 +216,29 @@ Syslog (`Aug 10 14:31:02 …`), ISO (`2026-08-10 14:31:02`), and web access logs
 (`10/Aug/2026:14:31:02`). Lines without a parseable timestamp still get analysed
 — they get a synthetic 1s ordering, and wall-clock checks skip them.
 
+## What the AI actually does
+
+Detection is entirely rule-based and measured. The language model has two
+jobs, both **advisory**, neither able to create a finding or change the risk
+score — so the numbers in [EVALUATION.md](EVALUATION.md) stay honest.
+
+**1. Analyst summary** — one paragraph tying the findings together. Sends only
+the findings, never a log line.
+
+**2. Second opinion on the blind spot** — the button *"AI: review what the
+rules ignored"*. Eleven rules only see patterns someone thought to encode;
+everything else passes silently. This collects the lines **no finding refers
+to**, collapses near-identical ones into shapes with counts, and asks the model
+whether any of them deserve a human's attention.
+
+That is the honest division of labour: **rules find what we defined and can be
+measured; the model reads what the rules ignored and says whether a detector is
+missing.** It advises — it never decides.
+
+⚠️ Unlike the summary, the second opinion **does send log lines** — the
+unflagged ones — to your provider. The dashboard asks you to confirm before it
+does, every time.
+
 ## Optional AI summary
 
 Detection is rule-based and runs fully offline. With an API key, LogMind adds

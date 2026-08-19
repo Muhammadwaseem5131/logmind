@@ -555,6 +555,62 @@ def ai_check(key):
     return False, f"Not connected ({last})."
 
 
+def uncovered(rep, limit=50):
+    """Log lines no finding refers to - the blind spot of any rule-based
+    detector, which only sees patterns someone thought to encode.
+
+    Near-identical lines are collapsed by replacing digits, so 500 health
+    checks become one shape with a count instead of 500 lines of prompt.
+    """
+    seen = {e for f in rep["findings"] for e in f["evidence"]}
+    ips = {ip for f in rep["findings"] for ip in f["ips"]}
+    users = {u for f in rep["findings"] for u in f["users"]}
+    shapes = {}
+    for e in rep["events"]:
+        if (e.raw in seen or (e.ip and e.ip in ips)
+                or (e.user and e.user in users)):
+            continue                            # a finding already covers it
+        sig = re.sub(r"\d+", "#", e.raw)[:180]
+        shapes.setdefault(sig, [0, e.raw])
+        shapes[sig][0] += 1
+    return sorted(shapes.values(), key=lambda v: -v[0])[:limit]
+
+
+def ai_review(rep, key):
+    """Second opinion on what the rules ignored.
+
+    Advisory only: it never creates a finding, never changes the risk score,
+    and is not part of anything the benchmark measures. Unlike the summary,
+    this does send log lines - the unflagged ones - to the provider, which the
+    dashboard states before you press the button.
+    """
+    key = (key or "").strip()
+    rows = uncovered(rep)
+    if not key:
+        return False, "Add an API key first."
+    if not rows:
+        return True, ("Every line in this log is already accounted for by a "
+                      "finding - there is nothing left for a second opinion.")
+    listing = "\n".join(f"{n:5} x  {example}" for n, example in rows)
+    already = ", ".join(f["title"] for f in rep["findings"]) or "none"
+    prompt = (
+        "You are reviewing a security log that a rule-based detector has "
+        "already processed. The rules raised these findings: " + already +
+        ".\n\nBelow are the line shapes the rules did NOT flag, with how often "
+        "each occurred. Say whether any of them deserve a security analyst's "
+        "attention and why, or state plainly that nothing stands out. Be "
+        "specific and concrete, at most 5 sentences. Do not repeat the "
+        "findings above, and do not invent detail that is not in the lines.\n\n"
+        "IGNORED LINE SHAPES (count x example):\n" + listing)
+    last = ""
+    for provider in ai_providers(key):
+        try:
+            return True, ai_call(*ai_request(provider, key, prompt))
+        except Exception as exc:
+            last = f"{provider}: {ai_reason(exc)}"
+    return False, f"Review unavailable ({last})."
+
+
 def ai_summary(findings, key=None):
     """Optional analyst-voice summary, from Google Gemini or Anthropic.
 
@@ -790,7 +846,11 @@ def render_results(rep, ai=None, static=False, idx=""):
             out.append(f'<button class="chip{" on" if sev == "All" else ""}" '
                        f'data-sev="{sev}" aria-pressed="{str(sev == "All").lower()}"'
                        f'{dis}>{sev} <span class="cnt">{n}</span></button>')
-        out.append('</div></div>')
+        out.append('</div>'
+                   '<button id="aiReview" class="btn ghost" type="button">'
+                   f'{icon("search")}AI: review what the rules ignored</button>'
+                   '</div>'
+                   '<div id="reviewCard"></div>')
 
     if not fs:
         out.append(f'<div class="card sev-Low"><header><span class="sev">'
@@ -1116,6 +1176,14 @@ def serve(port=8000, live=False):
             text = self.body()
             if text is None:
                 return
+            if self.path == "/api/review":
+                fields = qs(text)
+                rep = analyze(fields.get("log", [""])[0])
+                ok, msg = ai_review(rep, fields.get("key", [""])[0])
+                return self.send(json.dumps(
+                    {"ok": ok, "text": msg,
+                     "shapes": len(uncovered(rep)),
+                     "events": rep["stats"]["total"]}), "application/json")
             if self.path == "/api/key-check":
                 ok, msg = ai_check(qs(text).get("key", [""])[0])
                 return self.send(json.dumps({"ok": ok, "message": msg}),
@@ -1208,6 +1276,15 @@ def test():
         "the key field must never be re-rendered carrying what the user typed"
     assert 'id="delKey"' in ui, "the delete-key control must exist"
     assert 'id="connKey"' in ui, "the connect control must exist"
+    assert ai_review(analyze("Aug 10 09:00:00 h sshd: hello"), "")[0] is False
+
+    # the blind-spot list must exclude what findings already cover
+    rep_bf = analyze(read_text(os.path.join(SAMPLES, "brute_force.log")))
+    rows = uncovered(rep_bf)
+    flagged_ips = {ip for f in rep_bf["findings"] for ip in f["ips"]}
+    for _, example in rows:
+        assert not any(ip in example for ip in flagged_ips),             "a line an existing finding covers leaked into the review list"
+    assert sum(n for n, _ in rows) < rep_bf["stats"]["total"],         "the review list must be smaller than the whole log"
     assert ai_check("") == (False, "No key entered.")      # no network needed
     assert ai_providers("AIzaSyABC") == ["gemini"]
     assert ai_providers("AQ.Ab8xyz") == ["gemini"], "newer Google key format"

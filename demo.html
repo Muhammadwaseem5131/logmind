@@ -200,6 +200,9 @@ textarea:focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 22%,transpa
 .sev-Medium{border-left-color:var(--med)}  .sev-Medium .sev{color:var(--med)}
 .sev-Low{border-left-color:var(--low)}     .sev-Low .sev{color:var(--low)}
 .card.ai{border-left-color:var(--primary)} .card.ai .sev{color:var(--primary)}
+.card.advisory{border-left-color:var(--muted);border-style:dashed}
+.card.advisory .sev{color:var(--muted)}
+#aiReview{margin-left:auto}
 pre{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);
   padding:var(--s3);overflow-x:auto;margin:0 0 var(--s3)}
 code{font:12.5px/1.7 var(--mono);color:var(--muted);white-space:pre}
@@ -513,6 +516,45 @@ const res = $('#results');
 if (res && !fromHash) { res.focus({preventScroll:true});
   res.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion:reduce)').matches
     ? 'auto' : 'smooth', block:'start'}); }
+
+// AI second opinion on the lines the rules ignored ----------------------
+if ($('#aiReview')) $('#aiReview').onclick = async e => {
+  const btn = e.currentTarget, card = $('#reviewCard');
+  const k = ($('#apikey') || {}).value || localStorage.logmindKey || '';
+  if (!k.trim()) {
+    card.innerHTML = '<div class="card"><p class="hint bad">Add an API key ' +
+      'above first &mdash; this feature needs one.</p></div>';
+    return;
+  }
+  if (!confirm('This sends the log lines the rules did NOT flag to your AI ' +
+               'provider, so it can tell you if anything was missed.
+
+' +
+               'The findings-only summary does not do this. Continue?')) return;
+  btn.disabled = true; btn.textContent = 'Reviewing...';
+  card.innerHTML = '<div class="card"><p class="hint">Asking the model to ' +
+    'read what the rules ignored...</p></div>';
+  try {
+    const r = await fetch('/api/review', {
+      method: 'POST',
+      headers: {'content-type': 'application/x-www-form-urlencoded'},
+      body: 'key=' + encodeURIComponent(k.trim()) +
+            '&log=' + encodeURIComponent(($('#log') || {}).value || '')});
+    const d = await r.json();
+    const esc = t => t.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+    card.innerHTML =
+      '<article class="card advisory"><header><span class="sev">AI</span>' +
+      '<h3>Second opinion: what the rules ignored</h3></header>' +
+      '<p>' + esc(d.text) + '</p>' +
+      '<footer><span class="tag">' + d.shapes + ' unflagged line shapes</span>' +
+      '<span class="tag">advisory only &mdash; not a finding, not scored</span>' +
+      '</footer></article>';
+  } catch (err) {
+    card.innerHTML = '<div class="card"><p class="hint bad">Could not reach ' +
+      'LogMind. Is it still running?</p></div>';
+  }
+  btn.disabled = false; btn.textContent = 'AI: review what the rules ignored';
+};
 
 // export -----------------------------------------------------------------
 const raw = id => (document.getElementById(id) || {}).textContent;
