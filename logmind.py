@@ -8,6 +8,7 @@ to MITRE ATT&CK, and recommends actions. Standard library only, no installs.
   python logmind.py 8137               # ... on another port
   python logmind.py samples/brute_force.log    # text report
   python logmind.py --json samples/brute_force.log
+  python logmind.py --live             # dashboard + watch this machine's logs
   python logmind.py --test             # self-check
 """
 import html
@@ -17,6 +18,7 @@ import re
 import statistics
 import sys
 import threading
+import time
 import urllib.request
 import webbrowser
 from collections import Counter, defaultdict
@@ -823,6 +825,75 @@ def text_report(rep):
     return "\n".join(x for x in L if x is not None)
 
 
+# -------------------------------------------------------------- live mode ---
+
+LIVE = {"thread": None, "window": None, "sources": [], "started": None}
+
+
+def live_start():
+    """Begin watching this machine's readable logs, from the dashboard. Falls
+    back to demo.log so the button always does something visible."""
+    if LIVE["thread"] and LIVE["thread"].is_alive():
+        return LIVE["sources"]
+    import watch                              # imported late: watch imports us
+    paths = watch.discover() or [os.path.join(HERE, "demo.log")]
+    sources = [watch.FileSource(p) for p in paths]
+    window = watch.Window(minutes=15)
+
+    def loop():
+        while LIVE["thread"] is threading.current_thread():
+            lines = [ln for s in sources for ln in s.read()]
+            if lines:
+                events = parse("\n".join(lines))
+                for e in events:
+                    if not e.real_ts:          # no timestamp in the line: now
+                        e.ts = datetime.now()
+                window.add(events, time.time())
+            time.sleep(3)
+
+    LIVE.update(window=window, sources=paths, started=datetime.now())
+    LIVE["thread"] = threading.Thread(target=loop, daemon=True)
+    LIVE["thread"].start()
+    return paths
+
+
+def live_stop():
+    LIVE["thread"] = None                     # the loop sees this and exits
+
+
+def live_page():
+    win = LIVE["window"]
+    running = bool(LIVE["thread"] and LIVE["thread"].is_alive())
+    srcs = "".join(f'<span class="tag">{html.escape(p)}</span>'
+                   for p in LIVE["sources"])
+    head = (
+        f'<div class="statusbar"><span class="pill '
+        f'{"risk-low" if running else ""}">{icon("activity")}'
+        f'{"Live - watching" if running else "Stopped"}</span>'
+        f'<span class="sb-item"><b>{len(LIVE["sources"])}</b> source(s)</span>'
+        f'<span class="sb-item">since '
+        f'{LIVE["started"]:%H:%M:%S}</span>' if LIVE["started"] else
+        '<div class="statusbar"><span class="pill">Stopped</span>')
+    head += ('<span class="spacer"></span>'
+             '<form method="post" action="/live/stop" style="margin:0">'
+             '<button class="btn ghost">Stop</button></form>'
+             if running else
+             '<form method="post" action="/live/start" style="margin:0">'
+             '<button class="btn">Start monitoring</button></form>')
+    head += f'</div><p class="note">Watching: {srcs or "nothing yet"}</p>'
+
+    body = ""
+    if win:
+        evs = win.events()
+        body = (render_results(analyze("\n".join(e.raw for e in evs)))
+                if evs else
+                '<p class="note">Connected and waiting. Nothing has been '
+                'written to these files yet - this page refreshes itself.</p>')
+    refresh = ('<script>setTimeout(()=>location.reload(),8000)</script>'
+               if running else "")
+    return head + body + refresh
+
+
 # ------------------------------------------------------------------ server --
 
 def demo_files():
@@ -849,7 +920,7 @@ def page(log="", results=""):
                .replace("{{DEMOS}}", opts))
 
 
-def serve(port=8000):
+def serve(port=8000, live=False):
     # Threading matters: browsers open speculative connections they never send
     # a request on, and a single-threaded server serves them one at a time -
     # every real request then waits behind an idle socket.
@@ -879,6 +950,8 @@ def serve(port=8000):
             u = urlparse(self.path)
             if u.path in ("/", "/index.html"):
                 return self.send(page())
+            if u.path == "/live":
+                return self.send(page("", live_page()))
             if u.path == "/demo":
                 want = parse_qs(u.query).get("f", [""])[0]
                 if want not in demo_files():          # whitelist, no path games
@@ -896,6 +969,12 @@ def serve(port=8000):
                 ai = ai_summary(rep["findings"], self.headers.get("X-Api-Key"))
                 return self.send(json.dumps(report_json(rep, ai), indent=1),
                                  "application/json")
+            if self.path.startswith("/live/"):
+                live_start() if self.path.endswith("start") else live_stop()
+                self.send_response(303)
+                self.send_header("Location", "/live")
+                self.end_headers()
+                return
             fields = qs(text)
             log = fields.get("log", [""])[0]
             if not log.strip():                 # empty submit -> back to the hero
@@ -915,7 +994,10 @@ def serve(port=8000):
             break
         except OSError as exc:
             print(f"port {p} unavailable ({exc.strerror or exc})")
-    url = f"http://localhost:{httpd.server_address[1]}"
+    if live:
+        paths = live_start()
+        print(f"live monitoring: {', '.join(paths)}")
+    url = f"http://localhost:{httpd.server_address[1]}{'/live' if live else ''}"
     print(f"LogMind dashboard -> {url}   (Ctrl+C to stop)")
     # Launching a browser can block for seconds; do it off the serving path or
     # the first request sits in the accept queue with nobody answering it.
@@ -975,8 +1057,10 @@ if __name__ == "__main__":
         print(json.dumps(report_json(analyze(read_text(sys.argv[2]))), indent=1))
     elif arg in ("-h", "--help"):
         print(__doc__)
+    elif arg == "--live":
+        serve(int(sys.argv[2]) if len(sys.argv) > 2 else 8000, live=True)
     elif arg and arg.isdigit():
-        serve(int(arg))
+        serve(int(arg), live="--live" in sys.argv)
     elif arg:
         print(text_report(analyze(read_text(arg))))
     else:

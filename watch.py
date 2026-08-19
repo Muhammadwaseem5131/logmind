@@ -57,6 +57,24 @@ else:
     COLOR = {}
 
 
+# Log files worth watching if this machine happens to have them. Checked for
+# existence and read permission, never opened blindly.
+CANDIDATES = [
+    "/var/log/auth.log", "/var/log/secure",          # linux ssh / sudo
+    "/var/log/syslog", "/var/log/messages",
+    "/var/log/nginx/access.log", "/var/log/apache2/access.log",
+    "/var/log/system.log",                           # macos
+    r"C:\Windows\System32\LogFiles\Firewall\pfirewall.log",
+]
+
+
+def discover():
+    """Readable log files on this machine. Empty is a normal answer - most
+    desktops keep nothing a user can read without elevation."""
+    return [p for p in CANDIDATES
+            if os.path.isfile(p) and os.access(p, os.R_OK)]
+
+
 # ------------------------------------------------------------------ input --
 
 class FileSource:

@@ -21,6 +21,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo Starting the dashboard. Close this window to stop it.
-python logmind.py
+echo Starting LogMind: live monitoring + dashboard.
+echo Close this window to stop it.
+python logmind.py --live
 pause

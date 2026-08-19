@@ -22,8 +22,10 @@ python logmind.py --test     # proves the build is good
 python logmind.py            # opens the dashboard
 ```
 
-On Windows you can double-click **`start.bat`** instead; on macOS or Linux run
-**`./start.sh`**. Both run the self-check first and refuse to start if it fails.
+**One click:** double-click **`start.bat`** on Windows, or run **`./start.sh`**
+on macOS and Linux. That single step runs the self-check, refuses to continue if
+it fails, starts monitoring this machine's readable logs, and opens the live
+dashboard in your browser. Nothing else to type.
 
 If `python` is not recognised, install it from
 [python.org/downloads](https://python.org/downloads) and tick *"Add python.exe
@@ -87,9 +89,17 @@ One machine watches the logs it can reach and reports continuously. It never
 blocks, never modifies a firewall, and never touches the system it watches —
 it reads, analyses, and tells you.
 
+Either click **Live monitor** in the dashboard header, or start it already
+running:
+
 ```bash
-python watch.py /var/log/auth.log --port 8000
+python logmind.py --live          # dashboard, already watching
+python watch.py /var/log/auth.log --port 8000   # terminal, explicit paths
 ```
+
+The dashboard's Live page finds this machine's readable log files by itself,
+shows what it is watching, and has **Start** and **Stop** buttons. It refreshes
+on its own, so an alert appears without touching anything.
 
 ```
 LogMind watching 1 source(s): /var/log/auth.log

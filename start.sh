@@ -12,5 +12,5 @@ echo "Checking LogMind..."
 "$PY" logmind.py --test || { echo; echo "Self-check FAILED - do not demo this build."; exit 1; }
 
 echo
-echo "Starting the dashboard. Press Ctrl+C to stop."
-exec "$PY" logmind.py
+echo "Starting LogMind: live monitoring + dashboard. Ctrl+C to stop."
+exec "$PY" logmind.py --live

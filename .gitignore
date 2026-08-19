@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 logmind-report.json
 .claude/
+demo.log
