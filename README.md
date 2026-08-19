@@ -233,6 +233,10 @@ the key itself:
 `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` still work for scripted use, and
 `POST /api/analyze` accepts an `X-Api-Key` header.
 
+Press **Connect** after pasting a key: LogMind asks the provider for its model
+list — an authenticated call that spends no tokens — and reports **Connected**
+or exactly why not, before you rely on it in a demo.
+
 **How the key is handled**
 
 - only the **findings** are sent — never your raw log
@@ -246,6 +250,7 @@ the key itself:
 - kept in your browser **only** if you tick *Remember in this browser*
 - **Delete key** removes it from this browser immediately: storage entry,
   input field, and the remembered preference
+- the connection check returns only *ok* and a message — never the key
 - the call has a hard deadline; a wrong key or dead network shows a message
   and the report renders regardless
 

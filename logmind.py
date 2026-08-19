@@ -475,6 +475,46 @@ def ai_provider(key):
     return None
 
 
+def ai_check(key):
+    """Is this key usable? Asks the provider's model list - an authenticated
+    call that spends no tokens - and returns (ok, message). The key itself is
+    never part of the answer."""
+    key = (key or "").strip()
+    if not key:
+        return False, "No key entered."
+    provider = ai_provider(key)
+    if provider is None:
+        return False, ("Not a recognised key. Gemini keys start AIza, "
+                       "Anthropic keys start sk-ant-.")
+    if provider == "gemini":
+        req = urllib.request.Request(
+            "https://generativelanguage.googleapis.com/v1beta/models",
+            headers={"x-goog-api-key": key})
+    else:
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/models",
+            headers={"x-api-key": key, "anthropic-version": "2023-06-01"})
+
+    pool = ThreadPoolExecutor(1)
+    try:
+        pool.submit(lambda: urllib.request.urlopen(
+            req, timeout=AI_TIMEOUT).close()).result(timeout=AI_TIMEOUT + 2)
+        return True, f"Connected to {provider}."
+    except FuturesTimeout:
+        return False, f"No response within {AI_TIMEOUT}s - check your network."
+    except Exception as exc:
+        msg = str(exc)
+        # Gemini answers a bad key with 400, Anthropic with 401 - both mean the
+        # same thing to the person holding the key.
+        if any(c in msg for c in ("400", "401", "403")):
+            msg = "the provider rejected this key"
+        elif "429" in msg:
+            msg = "rate limited - try again shortly"
+        return False, f"Not connected ({msg})."
+    finally:
+        pool.shutdown(wait=False)
+
+
 def ai_summary(findings, key=None):
     """Optional analyst-voice summary, from Google Gemini or Anthropic.
 
@@ -1076,6 +1116,10 @@ def serve(port=8000, live=False):
             text = self.body()
             if text is None:
                 return
+            if self.path == "/api/key-check":
+                ok, msg = ai_check(qs(text).get("key", [""])[0])
+                return self.send(json.dumps({"ok": ok, "message": msg}),
+                                 "application/json")
             if self.path == "/api/analyze":
                 rep = analyze(text)
                 ai = ai_summary(rep["findings"], self.headers.get("X-Api-Key"))
@@ -1163,6 +1207,9 @@ def test():
     assert "value=" not in field, \
         "the key field must never be re-rendered carrying what the user typed"
     assert 'id="delKey"' in ui, "the delete-key control must exist"
+    assert 'id="connKey"' in ui, "the connect control must exist"
+    assert ai_check("") == (False, "No key entered.")      # no network needed
+    assert ai_check("not-a-key")[0] is False
     assert ai_provider("AIzaSyABC") == "gemini"
     assert ai_provider("sk-ant-api03-x") == "anthropic"
     assert ai_provider("guess") is None

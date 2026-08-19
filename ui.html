@@ -130,6 +130,8 @@ textarea:focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 22%,transpa
 .aibox .hint{margin:var(--s2) 0 0;max-width:70ch}
 .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);
   cursor:pointer}
+.hint.good{color:var(--low);font-weight:500}
+.hint.bad{color:var(--high);font-weight:500}
 
 /* --- status bar -------------------------------------------------------- */
 .statusbar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s4);
@@ -353,6 +355,7 @@ tbody tr:last-child td{border-bottom:0}
           autocomplete="off" autocapitalize="off" spellcheck="false"
           aria-describedby="keyhelp">
         <button type="button" class="btn ghost" id="showKey">Show</button>
+        <button type="button" class="btn" id="connKey">Connect</button>
         <button type="button" class="btn ghost" id="delKey">Delete key</button>
         <label class="chk"><input type="checkbox" id="remember">
           Remember in this browser</label>
@@ -433,13 +436,39 @@ if (localStorage.logmindKey) {
 show.onclick = () => { const hidden = key.type === 'password';
   key.type = hidden ? 'text' : 'password'; show.textContent = hidden ? 'Hide' : 'Show'; };
 
+// Connect: ask the provider whether this key works, before you rely on it.
+$('#connKey').onclick = async e => {
+  const btn = e.currentTarget, state = $('#keystate');
+  if (!key.value.trim()) { state.className = 'hint bad';
+    state.textContent = 'Enter a key first.'; return; }
+  btn.disabled = true; btn.textContent = 'Checking...';
+  state.className = 'hint'; state.textContent = 'Contacting the provider...';
+  try {
+    const r = await fetch('/api/key-check', {
+      method: 'POST',
+      headers: {'content-type': 'application/x-www-form-urlencoded'},
+      body: 'key=' + encodeURIComponent(key.value.trim())});
+    const d = await r.json();
+    state.className = 'hint ' + (d.ok ? 'good' : 'bad');
+    state.textContent = (d.ok ? 'Connected. ' : '') + d.message;
+    btn.textContent = d.ok ? 'Connected' : 'Connect';
+  } catch (err) {
+    state.className = 'hint bad';
+    state.textContent = 'Could not reach LogMind itself - is it still running?';
+    btn.textContent = 'Connect';
+  }
+  btn.disabled = false;
+};
+
 // Delete: clear the stored copy, the field, and the remembered preference.
 $('#delKey').onclick = () => {
   localStorage.removeItem('logmindKey');
   key.value = ''; key.type = 'password'; show.textContent = 'Show';
   remember.checked = false;
+  $('#keystate').className = 'hint';
   $('#keystate').textContent =
     'Key deleted from this browser. Nothing was kept on disk by LogMind.';
+  $('#connKey').textContent = 'Connect';
   key.focus();
 };
 panel.addEventListener('submit', () => {
