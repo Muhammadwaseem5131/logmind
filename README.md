@@ -56,6 +56,53 @@ log alone cannot separate them from the real thing.
 python evaluate.py
 ```
 
+## Live mode
+
+One machine watches the logs it can reach and reports continuously. It never
+blocks, never modifies a firewall, and never touches the system it watches —
+it reads, analyses, and tells you.
+
+```bash
+python watch.py /var/log/auth.log --port 8000
+```
+
+```
+LogMind watching 1 source(s): /var/log/auth.log
+window 15m | detectors every 10s | alert cooldown 10m | notify only, nothing is ever blocked
+live dashboard -> http://localhost:8000
+
+[10:18:46] HIGH   Successful login after repeated failures (203.0.113.45)
+  203.0.113.45 failed 12 times, then logged in successfully as 'carol'...
+  ATT&CK: T1110 Brute Force
+  -> Force a password reset and end active sessions for the account
+[10:33:00] normal: 1.5 events/min, 4 failed (7%), 6 source IPs, 3 accounts | nothing abnormal for 14m
+```
+
+Two kinds of line: **alerts** when something is abnormal, and a periodic
+**normal** line so you can see the baseline it is judging against.
+
+| | |
+|---|---|
+| Many logs at once | `python watch.py "/var/log/*.log" /var/log/nginx/access.log` |
+| Anything on a pipe | `journalctl -f \| python watch.py -` |
+| Windows events | `Get-WinEvent -LogName Security ... \| python watch.py -` |
+| Live dashboard | `--port 8000` — the normal UI, refreshing itself |
+| Chat alerts | `--webhook https://hooks.slack.com/...` |
+| Tuning | `--window 15 --interval 10 --cooldown 10 --status 15` (minutes / seconds) |
+
+It handles the things that break naive tailers: log rotation, truncation,
+a writer caught mid-line, and repeat alerts — one alert per distinct finding
+per cooldown, not one per scan. `python watch.py --test` proves each of those.
+
+**It does not block, by design.** Log lines are attacker-controllable, and the
+benchmark shows an office NAT gateway looks exactly like one IP probing many
+accounts — auto-blocking that logs out a building. LogMind reports; a human
+decides.
+
+**What it can and cannot see:** it reads logs, not packets. Point it at
+firewall, proxy, VPN, and web-server logs and it sees the network behaviour
+those record. It cannot see traffic nothing logged.
+
 ## Run modes
 
 | Command | What it does |
@@ -136,6 +183,7 @@ Design tokens generated with `ui-ux-pro-max` — see
 ```
 logmind.py                 engine, detectors, HTTP server, CLI, self-check
 ui.html                    dashboard template (design system lives here)
+watch.py                   live mode: tail, analyse, alert (never blocks)
 evaluate.py                labelled benchmark -> EVALUATION.md
 build_demo.py              renders demo.html, the static shareable snapshot
 samples/brute_force.log    SSH brute force + spraying + botnet spread
@@ -146,7 +194,8 @@ design-system/             generated design tokens and rules
 
 ## Limits
 
-Batch analysis of one log at a time — no live ingest, no database, no alerting,
-no multi-user. Uploads are capped at 5 MB and 50,000 lines. Detection is
+Batch or live tail on one machine — no database, no multi-user, no agents on
+other hosts, and no per-account baseline yet (it judges patterns, not "carol
+never logs in from Brazil"). Uploads are capped at 5 MB and 50,000 lines. Detection is
 heuristic: it finds these ten patterns, and finding nothing is not proof that
 nothing happened.
