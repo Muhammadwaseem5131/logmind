@@ -260,6 +260,9 @@ tbody tr:last-child td{border-bottom:0}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .card,.step,.demo{animation:rise 320ms cubic-bezier(.2,.9,.3,1.15) backwards;
   animation-delay:calc(var(--i,0) * 45ms)}
+/* live view swaps its contents every few seconds - replaying the entry
+   animation each time would make the page twitch */
+#liveWrap .card,#liveWrap .tile{animation:none}
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   *{animation:none!important;transition-duration:1ms!important}

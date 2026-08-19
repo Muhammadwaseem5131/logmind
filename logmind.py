@@ -876,7 +876,7 @@ def live_stop():
     LIVE["thread"] = None                     # the loop sees this and exits
 
 
-def live_page():
+def live_page(fragment=False):
     win = LIVE["window"]
     running = bool(LIVE["thread"] and LIVE["thread"].is_alive())
     srcs = "".join(f'<span class="tag">{html.escape(p)}</span>'
@@ -910,10 +910,28 @@ def live_page():
         body = (render_results(analyze("\n".join(e.raw for e in evs)))
                 if evs else
                 '<p class="note">Connected and waiting. Nothing has been '
-                'written to these files yet - this page refreshes itself.</p>')
-    refresh = ('<script>setTimeout(()=>location.reload(),8000)</script>'
-               if running else "")
-    return head + body + refresh
+                'written to these files yet - findings appear here on their '
+                'own.</p>')
+    if fragment:
+        return head + body
+
+    # Poll for a new fragment and swap it in place. A full page reload would
+    # throw away the reader's scroll position every few seconds.
+    poll = """
+<script>
+(() => {
+  const wrap = document.getElementById('liveWrap');
+  let last = wrap.innerHTML;
+  const tick = async () => {
+    try {
+      const html = await (await fetch('/live/data', {cache: 'no-store'})).text();
+      if (html !== last) { wrap.innerHTML = html; last = html; }
+    } catch (e) { /* server stopped: keep showing the last state */ }
+  };
+  setInterval(tick, 5000);
+})();
+</script>"""
+    return f'<div id="liveWrap">{head}{body}</div>{poll}'
 
 
 # ------------------------------------------------------------------ server --
@@ -974,6 +992,8 @@ def serve(port=8000, live=False):
                 return self.send(page())
             if u.path == "/live":
                 return self.send(page("", live_page()))
+            if u.path == "/live/data":          # fragment for in-place refresh
+                return self.send(live_page(fragment=True))
             if u.path == "/demo":
                 want = parse_qs(u.query).get("f", [""])[0]
                 if want not in demo_files():          # whitelist, no path games
