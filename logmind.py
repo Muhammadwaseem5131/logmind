@@ -830,8 +830,16 @@ def demo_files():
         if os.path.isdir(SAMPLES) else []
 
 
+def read_text(path):
+    """Always UTF-8. The default encoding is the machine's locale - cp1252 on
+    a European Windows, cp949 on a Korean one - and a log written elsewhere
+    would fail to open at all."""
+    with open(path, encoding="utf-8", errors="replace") as f:
+        return f.read()
+
+
 def page(log="", results=""):
-    tpl = open(os.path.join(HERE, "ui.html"), encoding="utf-8").read()
+    tpl = read_text(os.path.join(HERE, "ui.html"))
     opts = "".join(f'<option value="{html.escape(f)}">'
                    f'{html.escape(DEMO_BLURBS.get(f, (f[:-4], ""))[0])}</option>'
                    for f in demo_files())
@@ -875,8 +883,7 @@ def serve(port=8000):
                 want = parse_qs(u.query).get("f", [""])[0]
                 if want not in demo_files():          # whitelist, no path games
                     return self.send(page())
-                return self.send(page(open(os.path.join(SAMPLES, want),
-                                           encoding="utf-8").read()))
+                return self.send(page(read_text(os.path.join(SAMPLES, want))))
             self.send("Not found", "text/plain", 404)
 
         def do_POST(self):
@@ -926,7 +933,7 @@ def test():
               "web_attack.log": {"web_attack"},
               "insider.log": {"sensitive_command", "off_hours", "log_tampering"}}
     for name, want in expect.items():
-        rep = analyze(open(os.path.join(SAMPLES, name), encoding="utf-8").read())
+        rep = analyze(read_text(os.path.join(SAMPLES, name)))
         got = {f["cat"] for f in rep["findings"]}
         assert want <= got, f"{name}: missing {want - got} (got {got})"
         assert rep["risk"] == "High", f"{name}: risk {rep['risk']}"
@@ -965,13 +972,12 @@ if __name__ == "__main__":
     if arg == "--test":
         test()
     elif arg == "--json":
-        print(json.dumps(report_json(analyze(open(sys.argv[2], encoding="utf-8").read())),
-                         indent=1))
+        print(json.dumps(report_json(analyze(read_text(sys.argv[2]))), indent=1))
     elif arg in ("-h", "--help"):
         print(__doc__)
     elif arg and arg.isdigit():
         serve(int(arg))
     elif arg:
-        print(text_report(analyze(open(arg, encoding="utf-8").read())))
+        print(text_report(analyze(read_text(arg))))
     else:
         serve()

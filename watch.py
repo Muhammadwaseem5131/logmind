@@ -33,8 +33,28 @@ from datetime import datetime
 
 from logmind import analyze, parse
 
-RESET, DIM = "\033[0m", "\033[2m"
-COLOR = {"High": "\033[91m", "Medium": "\033[93m", "Low": "\033[92m"}
+def _color_ok():
+    """Colour only where it renders: a real terminal, and on Windows only if
+    the console accepts ANSI. Otherwise the escapes print as literal junk."""
+    if not sys.stdout.isatty():
+        return False
+    if os.name == "nt":
+        try:
+            import ctypes
+            k = ctypes.windll.kernel32
+            # 7 = ENABLE_PROCESSED_OUTPUT | WRAP_AT_EOL | VIRTUAL_TERMINAL_PROCESSING
+            return bool(k.SetConsoleMode(k.GetStdHandle(-11), 7))
+        except Exception:
+            return False
+    return True
+
+
+if _color_ok():
+    RESET, DIM = "\033[0m", "\033[2m"
+    COLOR = {"High": "\033[91m", "Medium": "\033[93m", "Low": "\033[92m"}
+else:
+    RESET = DIM = ""
+    COLOR = {}
 
 
 # ------------------------------------------------------------------ input --
@@ -55,9 +75,12 @@ class FileSource:
             return 0
 
     def _id(self):
+        """Identity of the file behind the path. Inode + device only: on Linux
+        st_ctime changes on every append, so including it would make each new
+        line look like a rotation and re-read the whole file."""
         try:
             st = os.stat(self.path)
-            return (st.st_ino, st.st_dev, st.st_ctime)
+            return (st.st_ino, st.st_dev)
         except OSError:
             return None
 
@@ -276,24 +299,25 @@ def test():
     import tempfile
     d = tempfile.mkdtemp()
     p = os.path.join(d, "t.log")
-    open(p, "w").close()
+    open(p, "w", encoding="utf-8").close()
     src = FileSource(p)
+    assert len(src._id()) == 2,         "file identity must be inode+device only - a timestamp in it makes "         "every append look like a rotation on Linux"
     assert src.read() == [], "a quiet file must yield nothing"
 
-    with open(p, "a") as f:
+    with open(p, "a", encoding="utf-8") as f:
         f.write("line one\nline two\n")
     assert src.read() == ["line one", "line two"], "appended lines missed"
     assert src.read() == [], "lines must not be re-read"
 
-    with open(p, "a") as f:                     # writer caught mid-line
+    with open(p, "a", encoding="utf-8") as f:                     # writer caught mid-line
         f.write("partial")
     assert src.read() == [], "a partial line must be held back"
-    with open(p, "a") as f:
+    with open(p, "a", encoding="utf-8") as f:
         f.write(" now complete\n")
     assert src.read() == ["partial now complete"], "held line never completed"
 
-    open(p, "w").close()                        # rotation / truncation
-    with open(p, "a") as f:
+    open(p, "w", encoding="utf-8").close()                        # rotation / truncation
+    with open(p, "a", encoding="utf-8") as f:
         f.write("after rotate\n")
     assert src.read() == ["after rotate"], "rotation not detected"
 
