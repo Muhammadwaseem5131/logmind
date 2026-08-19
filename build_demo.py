@@ -19,10 +19,18 @@ NOTE = (
     '<a href="https://github.com/Muhammadwaseem5131/logmind">github.com/Muhammadwaseem5131/logmind</a>.</p>')
 
 
+LIVE_LINK = (
+    '<a class="btn ghost" href="https://github.com/Muhammadwaseem5131/logmind"'
+    ' title="Live monitoring runs on your own machine">Get it on GitHub</a>')
+
+
 def build():
     tpl = open(os.path.join(HERE, "ui.html"), encoding="utf-8").read()
     tpl = re.sub(r"<!--FORM-->.*?<!--/FORM-->", NOTE, tpl, flags=re.S)
+    # Live monitoring needs the local server; on static hosting the link 404s.
+    tpl = re.sub(r"<!--LIVE-->.*?<!--/LIVE-->", LIVE_LINK, tpl, flags=re.S)
     assert "<form" not in tpl, "form survived the strip"
+    assert 'href="/' not in tpl, "a server-only link survived into the static page"
 
     hero = ('<section class="hero"><h1>Understand your security logs in '
             'seconds</h1><p class="lede">LogMind reads raw log files, finds the '
