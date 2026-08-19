@@ -16,15 +16,19 @@ import os
 import re
 import statistics
 import sys
+import threading
 import urllib.request
 import webbrowser
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeout
 from datetime import datetime, timedelta
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SAMPLES = os.path.join(HERE, "samples")
 MAX_BYTES = 5 * 1024 * 1024     # reject bigger uploads instead of eating RAM
 MAX_LINES = 50_000              # analyse a prefix of huge logs, and say so
+AI_TIMEOUT = 20                 # seconds before the report ships without a summary
 
 # ---------------------------------------------------------------- parsing ---
 
@@ -457,9 +461,14 @@ def summarize(events, findings):
 
 # ------------------------------------------------------------ AI summary ----
 
-def ai_summary(findings):
-    """Optional analyst-voice summary. Silent unless ANTHROPIC_API_KEY is set."""
-    key = os.environ.get("ANTHROPIC_API_KEY")
+def ai_summary(findings, key=None):
+    """Optional analyst-voice summary.
+
+    The key comes from the user - the dashboard field, an X-Api-Key header, or
+    ANTHROPIC_API_KEY as a fallback. It is used for this one request and never
+    stored, logged, echoed back into a page, or written into a report.
+    """
+    key = (key or "").strip() or os.environ.get("ANTHROPIC_API_KEY")
     if not key or not findings:
         return None
     prompt = ("You are a SOC analyst briefing a junior admin. In at most 4 "
@@ -473,11 +482,28 @@ def ai_summary(findings):
                          "messages": [{"role": "user", "content": prompt}]}).encode(),
         headers={"x-api-key": key, "anthropic-version": "2023-06-01",
                  "content-type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
+
+    def call():
+        with urllib.request.urlopen(req, timeout=AI_TIMEOUT) as r:
             return json.load(r)["content"][0]["text"]
+
+    # Hard deadline in a worker thread: a slow DNS lookup or a hung proxy can
+    # outlast urlopen's own timeout, and the report must never wait on it.
+    pool = ThreadPoolExecutor(1)
+    try:
+        return pool.submit(call).result(timeout=AI_TIMEOUT + 2)
+    except FuturesTimeout:
+        return (f"AI summary unavailable: no response within {AI_TIMEOUT}s. "
+                f"The findings below are unaffected.")
     except Exception as exc:        # never let the network kill the report
-        return f"AI summary unavailable ({exc})."
+        msg = str(exc)
+        if "401" in msg or "403" in msg:
+            msg = "the API key was rejected"
+        elif "429" in msg:
+            msg = "rate limited - try again shortly"
+        return f"AI summary unavailable ({msg}). The findings below are unaffected."
+    finally:
+        pool.shutdown(wait=False)   # don't block the response on a dead socket
 
 
 # --------------------------------------------------------------- rendering --
@@ -816,7 +842,10 @@ def page(log="", results=""):
 
 
 def serve(port=8000):
-    from http.server import BaseHTTPRequestHandler, HTTPServer
+    # Threading matters: browsers open speculative connections they never send
+    # a request on, and a single-threaded server serves them one at a time -
+    # every real request then waits behind an idle socket.
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     from urllib.parse import parse_qs, urlparse
 
     class H(BaseHTTPRequestHandler):
@@ -857,13 +886,17 @@ def serve(port=8000):
                 return
             if self.path == "/api/analyze":
                 rep = analyze(text)
-                return self.send(json.dumps(report_json(rep, ai_summary(rep["findings"])),
-                                            indent=1), "application/json")
-            log = qs(text).get("log", [""])[0]
+                ai = ai_summary(rep["findings"], self.headers.get("X-Api-Key"))
+                return self.send(json.dumps(report_json(rep, ai), indent=1),
+                                 "application/json")
+            fields = qs(text)
+            log = fields.get("log", [""])[0]
             if not log.strip():                 # empty submit -> back to the hero
                 return self.send(page())
             rep = analyze(log)
-            self.send(page(log, render_results(rep, ai_summary(rep["findings"]))))
+            # the key is used here and dropped; page() never receives it
+            ai = ai_summary(rep["findings"], fields.get("key", [""])[0])
+            self.send(page(log, render_results(rep, ai)))
 
         def log_message(self, *a):
             pass
@@ -871,16 +904,15 @@ def serve(port=8000):
     httpd = None
     for p in (port, port + 1, port + 2, 8080, 8123, 0):   # 0 = any free port
         try:
-            httpd = HTTPServer(("127.0.0.1", p), H)
+            httpd = ThreadingHTTPServer(("127.0.0.1", p), H)
             break
         except OSError as exc:
             print(f"port {p} unavailable ({exc.strerror or exc})")
     url = f"http://localhost:{httpd.server_address[1]}"
     print(f"LogMind dashboard -> {url}   (Ctrl+C to stop)")
-    try:
-        webbrowser.open(url)
-    except Exception:
-        pass                        # headless box: the printed URL is enough
+    # Launching a browser can block for seconds; do it off the serving path or
+    # the first request sits in the accept queue with nobody answering it.
+    threading.Thread(target=webbrowser.open, args=(url,), daemon=True).start()
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -910,6 +942,21 @@ def test():
     assert not analyze("")["findings"] and analyze("")["risk"] == "Low"
     assert parse("no timestamp here at all")[0].real_ts is False
     print("  quiet log          0 findings")
+
+    # the API key must never survive a request: no network call without one,
+    # and the field must never be re-rendered carrying what the user typed
+    saved = os.environ.pop("ANTHROPIC_API_KEY", None)
+    try:
+        assert ai_summary([{"severity": "High", "title": "t", "what": "w"}], "  ") is None
+    finally:
+        if saved:
+            os.environ["ANTHROPIC_API_KEY"] = saved
+    ui = page("a log line", "")
+    assert 'name="key"' in ui, "key field missing from the form"
+    field = re.search(r"<input[^>]*id=\"apikey\"[^>]*>", ui).group(0)
+    assert "value=" not in field, \
+        "the key field must never be re-rendered carrying what the user typed"
+    print("  key handling       ok")
     print("ok")
 
 

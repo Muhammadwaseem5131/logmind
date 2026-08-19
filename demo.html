@@ -118,6 +118,17 @@ textarea:focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 22%,transpa
 .row{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;margin-top:var(--s3)}
 .kbd{font:12px var(--mono);color:var(--muted);border:1px solid var(--border);
   border-radius:4px;padding:1px 6px}
+.aibox{margin-top:var(--s4);border-top:1px solid var(--border);padding-top:var(--s3)}
+.aibox summary{cursor:pointer;font-size:13px;color:var(--muted);
+  list-style-position:inside;transition:color var(--t)}
+.aibox summary:hover{color:var(--fg)}
+.aibox[open] summary{color:var(--fg);margin-bottom:var(--s2)}
+.aibox input[type=password],.aibox input[type=text]{flex:1 1 260px;font:13px var(--mono);
+  background:var(--bg);color:var(--fg);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:var(--s2) var(--s3);min-height:40px}
+.aibox .hint{margin:var(--s2) 0 0;max-width:70ch}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);
+  cursor:pointer}
 
 /* --- status bar -------------------------------------------------------- */
 .statusbar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s4);
@@ -419,6 +430,18 @@ panel.addEventListener('drop', e => e.dataTransfer.files[0] && load(e.dataTransf
 panel.addEventListener('submit', () => { const b = $('#go');
   if (ta.value.trim()) { b.disabled = true;
     b.innerHTML = '<span class="spin"></span> Analyzing&hellip;'; } });
+
+// API key: stays in this browser unless the user asks to keep it ---------
+const key = $('#apikey'), remember = $('#remember'), show = $('#showKey');
+if (localStorage.logmindKey) {
+  key.value = localStorage.logmindKey; remember.checked = true;
+  $('#aibox').open = true;
+}
+show.onclick = () => { const hidden = key.type === 'password';
+  key.type = hidden ? 'text' : 'password'; show.textContent = hidden ? 'Hide' : 'Show'; };
+panel.addEventListener('submit', () => {
+  if (remember.checked && key.value.trim()) localStorage.logmindKey = key.value.trim();
+  else localStorage.removeItem('logmindKey'); });
 }
 
 // severity filter, deep-linked via the hash ------------------------------
