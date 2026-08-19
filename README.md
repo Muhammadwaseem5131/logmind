@@ -218,22 +218,40 @@ Syslog (`Aug 10 14:31:02 …`), ISO (`2026-08-10 14:31:02`), and web access logs
 
 ## Optional AI summary
 
-Detection is rule-based and runs fully offline. With an Anthropic API key,
-LogMind adds one analyst-voice paragraph tying the findings together.
+Detection is rule-based and runs fully offline. With an API key, LogMind adds
+one analyst-voice paragraph tying the findings together.
 
 Open **"Optional — add an AI key for an analyst summary"** under the log box
-and paste your key. No editing files, no environment variables — each user
-brings their own key. `ANTHROPIC_API_KEY` still works as a fallback for
-scripted use, and `POST /api/analyze` accepts an `X-Api-Key` header.
+and paste a key from either provider — the one it belongs to is detected from
+the key itself:
 
-How the key is handled:
+| Provider | Key looks like | Get one |
+|---|---|---|
+| **Google Gemini** (free tier) | `AIza…` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| **Anthropic** | `sk-ant-…` | [console.anthropic.com](https://console.anthropic.com/settings/keys) |
 
-- only the **findings** are sent to the API, never your raw log
-- used for that one request, then dropped — never written to disk or logged
-- never echoed back into the page or included in an exported report
-- stored in your browser **only** if you tick *Remember in this browser*
+`GEMINI_API_KEY` / `ANTHROPIC_API_KEY` still work for scripted use, and
+`POST /api/analyze` accepts an `X-Api-Key` header.
+
+**How the key is handled**
+
+- only the **findings** are sent — never your raw log
+- it goes to your own local LogMind process, then to that provider, and
+  nowhere else
+- sent as a request **header**, never in a URL, so it cannot reach browser
+  history, a proxy log, or an error message
+- never written to disk by LogMind, never printed to a log line, never echoed
+  back into the page, never included in an exported report — all asserted by
+  `python logmind.py --test`
+- kept in your browser **only** if you tick *Remember in this browser*
+- **Delete key** removes it from this browser immediately: storage entry,
+  input field, and the remembered preference
 - the call has a hard deadline; a wrong key or dead network shows a message
   and the report renders regardless
+
+What deleting cannot reach: a copy you pasted elsewhere, your clipboard, or
+your OS's memory. If a key was ever exposed, revoke it at the provider — that
+is the only guaranteed removal, and it takes one click on either console.
 
 ## Interface
 

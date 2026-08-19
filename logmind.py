@@ -31,6 +31,8 @@ SAMPLES = os.path.join(HERE, "samples")
 MAX_BYTES = 5 * 1024 * 1024     # reject bigger uploads instead of eating RAM
 MAX_LINES = 50_000              # analyse a prefix of huge logs, and say so
 AI_TIMEOUT = 20                 # seconds before the report ships without a summary
+GEMINI_MODEL = "gemini-2.0-flash"        # free tier at aistudio.google.com
+ANTHROPIC_MODEL = "claude-sonnet-5"
 
 # ---------------------------------------------------------------- parsing ---
 
@@ -463,31 +465,61 @@ def summarize(events, findings):
 
 # ------------------------------------------------------------ AI summary ----
 
+def ai_provider(key):
+    """Which service a key belongs to, from its own prefix. Google keys start
+    AIza, Anthropic keys sk-ant-; anything else is a guess, so say so."""
+    if key.startswith("AIza"):
+        return "gemini"
+    if key.startswith("sk-ant-"):
+        return "anthropic"
+    return None
+
+
 def ai_summary(findings, key=None):
-    """Optional analyst-voice summary.
+    """Optional analyst-voice summary, from Google Gemini or Anthropic.
 
     The key comes from the user - the dashboard field, an X-Api-Key header, or
-    ANTHROPIC_API_KEY as a fallback. It is used for this one request and never
-    stored, logged, echoed back into a page, or written into a report.
+    an environment variable. It travels to that provider and nowhere else: it
+    is never stored on disk, written to a log line, echoed back into a page, or
+    included in an exported report, and it is never placed in a URL where it
+    could reach browser history or an error message.
     """
-    key = (key or "").strip() or os.environ.get("ANTHROPIC_API_KEY")
+    key = ((key or "").strip() or os.environ.get("GEMINI_API_KEY")
+           or os.environ.get("ANTHROPIC_API_KEY") or "")
     if not key or not findings:
         return None
+    provider = ai_provider(key)
+    if provider is None:
+        return ("AI summary unavailable: that key is not recognised. Use a "
+                "Google Gemini key (starts AIza) or an Anthropic key "
+                "(starts sk-ant-).")
     prompt = ("You are a SOC analyst briefing a junior admin. In at most 4 "
               "sentences of plain English, say what these log findings mean "
               "together and what to do first:\n\n" +
               json.dumps([{k: f[k] for k in ("severity", "title", "what")}
                           for f in findings], indent=1))
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
-        data=json.dumps({"model": "claude-sonnet-5", "max_tokens": 400,
-                         "messages": [{"role": "user", "content": prompt}]}).encode(),
-        headers={"x-api-key": key, "anthropic-version": "2023-06-01",
-                 "content-type": "application/json"})
+
+    if provider == "gemini":
+        # Key goes in a header, never in the query string: a URL would end up
+        # in error messages and proxy logs.
+        req = urllib.request.Request(
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{GEMINI_MODEL}:generateContent",
+            data=json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode(),
+            headers={"x-goog-api-key": key, "content-type": "application/json"})
+        pick = lambda d: d["candidates"][0]["content"]["parts"][0]["text"]
+    else:
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=json.dumps({"model": ANTHROPIC_MODEL, "max_tokens": 400,
+                             "messages": [{"role": "user", "content": prompt}]}).encode(),
+            headers={"x-api-key": key, "anthropic-version": "2023-06-01",
+                     "content-type": "application/json"})
+        pick = lambda d: d["content"][0]["text"]
 
     def call():
         with urllib.request.urlopen(req, timeout=AI_TIMEOUT) as r:
-            return json.load(r)["content"][0]["text"]
+            return pick(json.load(r))
 
     # Hard deadline in a worker thread: a slow DNS lookup or a hung proxy can
     # outlast urlopen's own timeout, and the report must never wait on it.
@@ -499,8 +531,10 @@ def ai_summary(findings, key=None):
                 f"The findings below are unaffected.")
     except Exception as exc:        # never let the network kill the report
         msg = str(exc)
-        if "401" in msg or "403" in msg:
-            msg = "the API key was rejected"
+        if "401" in msg or "403" in msg or "400" in msg:
+            msg = f"the {provider} key was rejected"
+        elif "404" in msg:
+            msg = f"{provider} did not recognise the model name"
         elif "429" in msg:
             msg = "rate limited - try again shortly"
         return f"AI summary unavailable ({msg}). The findings below are unaffected."
@@ -1128,6 +1162,18 @@ def test():
     field = re.search(r"<input[^>]*id=\"apikey\"[^>]*>", ui).group(0)
     assert "value=" not in field, \
         "the key field must never be re-rendered carrying what the user typed"
+    assert 'id="delKey"' in ui, "the delete-key control must exist"
+    assert ai_provider("AIzaSyABC") == "gemini"
+    assert ai_provider("sk-ant-api03-x") == "anthropic"
+    assert ai_provider("guess") is None
+
+    # a key must never survive into anything the tool produces
+    SENTINEL = "AIzaSyTESTKEY_MUST_NEVER_APPEAR"
+    rep = analyze(read_text(os.path.join(SAMPLES, "brute_force.log")))
+    for artefact in (json.dumps(report_json(rep)), markdown_report(rep),
+                     text_report(rep), render_results(rep), page("a log", "")):
+        assert SENTINEL not in artefact and "sk-ant-api" not in artefact, \
+            "an API key reached an exported artefact"
     print("  key handling       ok")
     print("ok")
 

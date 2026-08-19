@@ -348,20 +348,30 @@ tbody tr:last-child td{border-bottom:0}
     <details class="aibox" id="aibox">
       <summary>Optional &mdash; add an AI key for an analyst summary</summary>
       <div class="row">
-        <input type="password" id="apikey" name="key" placeholder="sk-ant-..."
+        <input type="password" id="apikey" name="key"
+          placeholder="AIza... (Gemini)  or  sk-ant-... (Anthropic)"
           autocomplete="off" autocapitalize="off" spellcheck="false"
           aria-describedby="keyhelp">
         <button type="button" class="btn ghost" id="showKey">Show</button>
+        <button type="button" class="btn ghost" id="delKey">Delete key</button>
         <label class="chk"><input type="checkbox" id="remember">
           Remember in this browser</label>
       </div>
+      <p class="hint" id="keystate" role="status"></p>
       <p class="hint" id="keyhelp">Detection works fully offline without a key.
-        With one, LogMind sends only the findings (never your raw log) to
-        api.anthropic.com and adds a written summary. The key goes to your own
-        local LogMind process, is used for that one request, and is never
-        written to disk, logged, or included in an exported report. Get a key at
+        With one, LogMind sends <b>only the findings</b> &mdash; never your raw
+        log &mdash; to the provider your key belongs to, and adds a written
+        summary. Free Gemini key:
+        <a href="https://aistudio.google.com/apikey" target="_blank"
+        rel="noopener">aistudio.google.com/apikey</a> &middot; Anthropic:
         <a href="https://console.anthropic.com/settings/keys" target="_blank"
-        rel="noopener">console.anthropic.com</a>.</p>
+        rel="noopener">console.anthropic.com</a>.<br>
+        The key goes to your own local LogMind process and then to that
+        provider, and nowhere else. It is never written to disk by LogMind,
+        never printed to a log line, never put in a URL, and never included in
+        an exported report. It stays in this browser only if you tick
+        <b>Remember</b>, and <b>Delete key</b> removes it from this browser
+        immediately.</p>
     </details>
   </form>
   <!--/FORM-->
@@ -418,9 +428,20 @@ const key = $('#apikey'), remember = $('#remember'), show = $('#showKey');
 if (localStorage.logmindKey) {
   key.value = localStorage.logmindKey; remember.checked = true;
   $('#aibox').open = true;
+  $('#keystate').textContent = 'A key is remembered in this browser.';
 }
 show.onclick = () => { const hidden = key.type === 'password';
   key.type = hidden ? 'text' : 'password'; show.textContent = hidden ? 'Hide' : 'Show'; };
+
+// Delete: clear the stored copy, the field, and the remembered preference.
+$('#delKey').onclick = () => {
+  localStorage.removeItem('logmindKey');
+  key.value = ''; key.type = 'password'; show.textContent = 'Show';
+  remember.checked = false;
+  $('#keystate').textContent =
+    'Key deleted from this browser. Nothing was kept on disk by LogMind.';
+  key.focus();
+};
 panel.addEventListener('submit', () => {
   if (remember.checked && key.value.trim()) localStorage.logmindKey = key.value.trim();
   else localStorage.removeItem('logmindKey'); });

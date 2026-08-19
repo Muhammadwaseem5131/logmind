@@ -448,9 +448,20 @@ const key = $('#apikey'), remember = $('#remember'), show = $('#showKey');
 if (localStorage.logmindKey) {
   key.value = localStorage.logmindKey; remember.checked = true;
   $('#aibox').open = true;
+  $('#keystate').textContent = 'A key is remembered in this browser.';
 }
 show.onclick = () => { const hidden = key.type === 'password';
   key.type = hidden ? 'text' : 'password'; show.textContent = hidden ? 'Hide' : 'Show'; };
+
+// Delete: clear the stored copy, the field, and the remembered preference.
+$('#delKey').onclick = () => {
+  localStorage.removeItem('logmindKey');
+  key.value = ''; key.type = 'password'; show.textContent = 'Show';
+  remember.checked = false;
+  $('#keystate').textContent =
+    'Key deleted from this browser. Nothing was kept on disk by LogMind.';
+  key.focus();
+};
 panel.addEventListener('submit', () => {
   if (remember.checked && key.value.trim()) localStorage.logmindKey = key.value.trim();
   else localStorage.removeItem('logmindKey'); });
