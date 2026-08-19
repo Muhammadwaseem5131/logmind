@@ -14,6 +14,7 @@ Scoring convention: each scenario declares `expected` (must fire) and
 contain a volume spike). Anything outside both sets is a false positive.
 Benign scenarios allow nothing: any finding is a false positive.
 """
+import os
 import random
 import sys
 from datetime import datetime, timedelta
@@ -466,7 +467,10 @@ if __name__ == "__main__":
     text, _ = report()
     print(text)
     if "--write" in sys.argv:
-        open("EVALUATION.md", "w", encoding="utf-8").write(MD.format(
+        # next to the script, not wherever the shell happens to be
+        out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "EVALUATION.md")
+        open(out, "w", encoding="utf-8").write(MD.format(
             results=text, ngen=len(ATTACKS) + len(BENIGN), natt=len(ATTACKS),
             nben=len(BENIGN), nseed=len(SEEDS)))
-        print("\nwrote EVALUATION.md")
+        print(f"\nwrote {out}")

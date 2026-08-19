@@ -5,9 +5,25 @@ with a risk level, MITRE ATT&CK mapping, and recommended actions.
 
 No installs, no dependencies, no internet required — Python standard library only.
 
+## Install
+
+There is nothing to install. Python 3.8 or newer is the only requirement, and
+every import is from the standard library.
+
 ```bash
-python logmind.py
+git clone https://github.com/YOURNAME/logmind.git
+cd logmind
+python logmind.py --test     # proves the build is good
+python logmind.py            # opens the dashboard
 ```
+
+On Windows you can double-click **`start.bat`** instead; on macOS or Linux run
+**`./start.sh`**. Both run the self-check first and refuse to start if it fails.
+
+If `python` is not recognised, install it from
+[python.org/downloads](https://python.org/downloads) and tick *"Add python.exe
+to PATH"* during setup. No `pip install` step exists, because there is nothing
+to install.
 
 The dashboard opens in your browser. Press **Load demo log** to see it work.
 
