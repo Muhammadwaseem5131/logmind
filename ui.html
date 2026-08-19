@@ -391,12 +391,24 @@ tbody tr:last-child td{border-bottom:0}
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 
 // opened straight from the file system: nothing can analyse anything ------
-if (location.protocol === 'file:') {
+// Served as a plain file rather than by LogMind? Then the placeholders below
+// are still literal text and no button can work, because there is no backend
+// behind them. Opening ui.html directly, or serving the folder with something
+// like `python -m http.server`, both land here. Say so instead of failing
+// silently one control at a time.
+if (location.protocol === 'file:' || /\{\{\w+\}\}/.test($('main').innerHTML)) {
   const m = $('main');
   m.innerHTML = m.innerHTML.replace(/\{\{\w+\}\}/g, '');
-  m.insertAdjacentHTML('afterbegin', '<p class="note">This is the page template. ' +
-    'Start the app with <code>python logmind.py</code> and open the ' +
-    '<b>http://localhost:&hellip;</b> address it prints &mdash; the analysis runs there.</p>');
+  m.insertAdjacentHTML('afterbegin',
+    '<div class="card sev-High"><header><span class="sev">Not running</span>' +
+    '<h3>This is the page template, not the app</h3></header>' +
+    '<p>Nothing here will work: analysis, the AI key check, and the review ' +
+    'button all need the LogMind server, and it is not the thing serving this ' +
+    'page. A plain file server such as <code>python -m http.server</code> ' +
+    'hands out the template unchanged.</p>' +
+    '<p><b>Start LogMind instead:</b> double-click <code>start.bat</code>, or ' +
+    'run <code>python logmind.py --live</code>, then open the ' +
+    '<b>http://localhost:&hellip;</b> address it prints in the terminal.</p></div>');
 }
 
 // theme ------------------------------------------------------------------
