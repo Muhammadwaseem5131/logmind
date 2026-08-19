@@ -92,14 +92,22 @@ Syslog (`Aug 10 14:31:02 …`), ISO (`2026-08-10 14:31:02`), and web access logs
 
 ## Optional AI summary
 
-Everything above is rule-based and works offline. Set an API key to add one
-analyst-voice paragraph tying the findings together:
+Detection is rule-based and runs fully offline. With an Anthropic API key,
+LogMind adds one analyst-voice paragraph tying the findings together.
 
-```bash
-set ANTHROPIC_API_KEY=sk-ant-...
-```
+Open **"Optional — add an AI key for an analyst summary"** under the log box
+and paste your key. No editing files, no environment variables — each user
+brings their own key. `ANTHROPIC_API_KEY` still works as a fallback for
+scripted use, and `POST /api/analyze` accepts an `X-Api-Key` header.
 
-If the key is missing or the call fails, the report is unaffected.
+How the key is handled:
+
+- only the **findings** are sent to the API, never your raw log
+- used for that one request, then dropped — never written to disk or logged
+- never echoed back into the page or included in an exported report
+- stored in your browser **only** if you tick *Remember in this browser*
+- the call has a hard deadline; a wrong key or dead network shows a message
+  and the report renders regardless
 
 ## Interface
 
