@@ -27,6 +27,13 @@ on macOS and Linux. That single step runs the self-check, refuses to continue if
 it fails, starts monitoring this machine's readable logs, and opens the live
 dashboard in your browser. Nothing else to type.
 
+**Administrator rights are optional, and always asked for.** The Windows
+Security log — logons, RDP attempts, new accounts — is only readable with
+elevation, so `start.bat` offers to restart elevated and Windows shows its own
+UAC prompt. Decline and everything still runs on the logs you can read. On
+Linux the equivalent is membership of the `adm` group; the script says so
+rather than assuming. The dashboard states which mode it is in.
+
 If `python` is not recognised, install it from
 [python.org/downloads](https://python.org/downloads) and tick *"Add python.exe
 to PATH"* during setup. No `pip install` step exists, because there is nothing

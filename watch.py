@@ -122,6 +122,44 @@ class FileSource:
         return data.decode("utf-8", "replace").splitlines()
 
 
+def is_admin():
+    """True when this process can read privileged logs."""
+    try:
+        if os.name == "nt":
+            import ctypes
+            return bool(ctypes.windll.shell32.IsUserAnAdmin())
+        return os.geteuid() == 0
+    except Exception:
+        return False
+
+
+class CommandSource:
+    """Lines from a long-running command - used for logs that are not files,
+    like the Windows Security event log behind winlogs.ps1."""
+
+    def __init__(self, argv):
+        import subprocess
+        self.argv = argv
+        self.q = queue.Queue()
+        self.proc = subprocess.Popen(argv, stdout=subprocess.PIPE,
+                                     stderr=subprocess.DEVNULL, text=True,
+                                     encoding="utf-8", errors="replace",
+                                     bufsize=1)
+        threading.Thread(target=self._pump, daemon=True).start()
+
+    def _pump(self):
+        for line in self.proc.stdout:
+            self.q.put(line.rstrip("\n"))
+
+    def read(self):
+        out = []
+        while True:
+            try:
+                out.append(self.q.get_nowait())
+            except queue.Empty:
+                return [ln for ln in out if ln.strip()]
+
+
 class StdinSource:
     """Anything piped in: journalctl -f, tail -f, a PowerShell exporter."""
 

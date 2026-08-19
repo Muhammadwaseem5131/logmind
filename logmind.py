@@ -827,7 +827,8 @@ def text_report(rep):
 
 # -------------------------------------------------------------- live mode ---
 
-LIVE = {"thread": None, "window": None, "sources": [], "started": None}
+LIVE = {"thread": None, "window": None, "sources": [], "started": None,
+        "admin": False}
 
 
 def live_start():
@@ -838,6 +839,20 @@ def live_start():
     import watch                              # imported late: watch imports us
     paths = watch.discover() or [os.path.join(HERE, "demo.log")]
     sources = [watch.FileSource(p) for p in paths]
+
+    # With administrator rights the Windows Security log is readable too - the
+    # one that actually records logons, RDP attempts and new accounts.
+    LIVE["admin"] = watch.is_admin()
+    script = os.path.join(HERE, "winlogs.ps1")
+    if LIVE["admin"] and os.name == "nt" and os.path.isfile(script):
+        try:
+            sources.append(watch.CommandSource(
+                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                 "-File", script]))
+            paths = paths + ["Windows Security event log"]
+        except Exception as exc:
+            print(f"could not read the Security log: {exc}")
+
     window = watch.Window(minutes=15)
 
     def loop():
@@ -881,6 +896,13 @@ def live_page():
              '<form method="post" action="/live/start" style="margin:0">'
              '<button class="btn">Start monitoring</button></form>')
     head += f'</div><p class="note">Watching: {srcs or "nothing yet"}</p>'
+    if running and not LIVE["admin"]:
+        head += (
+            '<p class="note">Running without administrator rights, so the logs '
+            'that record logons are not readable. On Windows, close this and '
+            'right-click <b>start.bat</b> &rarr; <b>Run as administrator</b> to '
+            'include the Security event log. On Linux, add your user to the '
+            '<code>adm</code> group, or run with <code>sudo</code>.</p>')
 
     body = ""
     if win:

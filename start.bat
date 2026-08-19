@@ -11,6 +11,27 @@ if errorlevel 1 (
   exit /b 1
 )
 
+REM Reading the Windows Security log - the one that records logons, RDP
+REM attempts and new accounts - needs administrator rights. Ask; never take.
+net session >nul 2>&1
+if not errorlevel 1 goto :run
+if "%1"=="elevated" goto :run
+
+echo.
+echo LogMind can watch this PC's Security log - failed logons, RDP attacks,
+echo new accounts - but Windows only allows that with administrator rights.
+echo.
+echo   [Y] Restart with administrator rights  (full monitoring)
+echo   [N] Continue without                   (demo log and readable files only)
+echo.
+set /p ELEV="Choice [Y/N]: "
+if /i "%ELEV%"=="Y" (
+  powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -ArgumentList 'elevated' -Verb RunAs"
+  exit /b 0
+)
+
+:run
+echo.
 echo Checking LogMind...
 python logmind.py --test
 if errorlevel 1 (
