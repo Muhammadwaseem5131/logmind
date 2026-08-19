@@ -3,17 +3,13 @@ name: demo page
 # Publishes the rendered demo to GitHub Pages so anyone can open a real
 # analysed report without installing anything.
 #
-# Manual trigger only, until Pages is switched on:
-#   Settings -> Pages -> Build and deployment -> Source: GitHub Actions
-# then Actions -> "demo page" -> Run workflow. Once that run is green, add
-# the push trigger back and every commit republishes the demo:
-#
-#   on:
-#     push:
-#       branches: [main]
-#     workflow_dispatch:
+# Pages source is set to GitHub Actions, so every push to main republishes the
+# demo at https://muhammadwaseem5131.github.io/logmind/ - rendered from the
+# sample logs in this repository, and only if the self-check passes.
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
