@@ -147,6 +147,33 @@ decides.
 firewall, proxy, VPN, and web-server logs and it sees the network behaviour
 those record. It cannot see traffic nothing logged.
 
+## Faking an attack, to see it work
+
+Run LogMind in one window and the simulator in another. It writes a real
+attack pattern into the watched log, one line at a time, so the finding
+appears while you watch. Nothing is attacked — these are log lines.
+
+```bash
+python logmind.py --live      # window 1
+python simulate.py            # window 2
+```
+
+| Scenario | What it writes |
+|---|---|
+| `brute` | Failed logins, then one succeeds |
+| `spray` | One IP trying many usernames |
+| `burst` | A flood of failures that never gets in |
+| `spread` | One account attacked from many IPs |
+| `web` | Scanner, SQL injection, path traversal |
+| `insider` | Off-hours login, then credential theft |
+| `cleanup` | auditd stopped and the log cleared |
+| `enumerate` | Hunting for usernames that exist |
+
+`python simulate.py --list` shows them all; `--speed 0.1` runs faster.
+
+These are the same generators the accuracy benchmark scores against, so what
+you demo is exactly what was measured.
+
 ## Run modes
 
 | Command | What it does |
