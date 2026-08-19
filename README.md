@@ -33,8 +33,8 @@ to install.
 The dashboard opens in your browser. Press **Load demo log** to see it work.
 
 **[Open the live demo →](https://muhammadwaseem5131.github.io/logmind/)** —
-three real attack logs, already analysed, no install needed. Rebuilt from the
-samples on every push by the `demo page` workflow.
+three real attack logs, already analysed, no install needed. Rendered by the
+`demo page` workflow straight from the samples in this repository.
 
 Every push also runs the full test suite on **Linux, macOS, and Windows**
 across Python 3.8 and 3.12 — the badge above is that result, not a claim.

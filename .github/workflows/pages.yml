@@ -1,13 +1,19 @@
 name: demo page
 
 # Publishes the rendered demo to GitHub Pages so anyone can open a real
-# analysed report without installing anything. `enablement: true` below turns
-# Pages on the first time this runs, so no repository setting has to be
-# clicked by hand.
+# analysed report without installing anything.
+#
+# Manual trigger only, until Pages is switched on:
+#   Settings -> Pages -> Build and deployment -> Source: GitHub Actions
+# then Actions -> "demo page" -> Run workflow. Once that run is green, add
+# the push trigger back and every commit republishes the demo:
+#
+#   on:
+#     push:
+#       branches: [main]
+#     workflow_dispatch:
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
