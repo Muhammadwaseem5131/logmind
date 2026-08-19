@@ -11,7 +11,7 @@ There is nothing to install. Python 3.8 or newer is the only requirement, and
 every import is from the standard library.
 
 ```bash
-git clone https://github.com/YOURNAME/logmind.git
+git clone https://github.com/Muhammadwaseem5131/logmind.git
 cd logmind
 python logmind.py --test     # proves the build is good
 python logmind.py            # opens the dashboard

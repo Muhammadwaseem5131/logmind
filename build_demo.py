@@ -16,7 +16,7 @@ NOTE = (
     '<p class="note">Static snapshot of three analysed logs &mdash; the live '
     'tool (paste your own log, filter, export) runs locally with '
     '<code>python logmind.py</code>. Source: '
-    '<a href="https://github.com/">github repository</a>.</p>')
+    '<a href="https://github.com/Muhammadwaseem5131/logmind">github.com/Muhammadwaseem5131/logmind</a>.</p>')
 
 
 def build():
