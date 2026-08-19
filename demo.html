@@ -454,7 +454,18 @@ if (localStorage.logmindKey) {
   key.value = localStorage.logmindKey; remember.checked = true;
   $('#aibox').open = true;
   $('#keystate').textContent = 'A key is remembered in this browser.';
+} else if (sessionStorage.logmindKey) {
+  key.value = sessionStorage.logmindKey;
+  $('#aibox').open = true;
+  $('#keystate').textContent =
+    'Key kept for this browser tab. Tick Remember to keep it after closing.';
 }
+// Survive a refresh without being written to disk: sessionStorage lasts for
+// this tab only. Ticking Remember is what makes it persist.
+key.addEventListener('input', () => {
+  if (key.value.trim()) sessionStorage.logmindKey = key.value.trim();
+  else sessionStorage.removeItem('logmindKey');
+});
 show.onclick = () => { const hidden = key.type === 'password';
   key.type = hidden ? 'text' : 'password'; show.textContent = hidden ? 'Hide' : 'Show'; };
 
@@ -485,6 +496,7 @@ $('#connKey').onclick = async e => {
 // Delete: clear the stored copy, the field, and the remembered preference.
 $('#delKey').onclick = () => {
   localStorage.removeItem('logmindKey');
+  sessionStorage.removeItem('logmindKey');
   key.value = ''; key.type = 'password'; show.textContent = 'Show';
   remember.checked = false;
   $('#keystate').className = 'hint';
@@ -524,7 +536,8 @@ const esc = t => String(t).replace(/[<>&]/g,
 // The key field is blanked after every analysis on purpose, so the review
 // flow must be able to take a key at the moment it is needed.
 const reviewKey = () =>
-  (($('#apikey') || {}).value || localStorage.logmindKey || '').trim();
+  (($('#apikey') || {}).value || localStorage.logmindKey ||
+   sessionStorage.logmindKey || '').trim();
 
 async function runReview(btn, card) {
   btn.disabled = true; btn.textContent = 'Reviewing...';
@@ -559,6 +572,7 @@ if ($('#aiReview')) $('#aiReview').onclick = e => {
   if (!reviewKey()) {
     const box = $('#aibox');
     if (box) { box.open = true; $('#apikey').focus(); }
+    card.scrollIntoView({block: 'center', behavior: 'smooth'});
     card.innerHTML = '<div class="card"><p class="hint bad">Paste your API ' +
       'key in the box above, then press this button again. Tick ' +
       '<b>Remember in this browser</b> to keep it for next time &mdash; the ' +
@@ -578,6 +592,7 @@ if ($('#aiReview')) $('#aiReview').onclick = e => {
     '<button class="btn ghost" id="revNo">Cancel</button></div></div>';
   $('#revGo').onclick = () => runReview(btn, card);
   $('#revNo').onclick = () => { card.innerHTML = ''; };
+  card.scrollIntoView({block: 'center', behavior: 'smooth'});
 };
 
 // export -----------------------------------------------------------------
