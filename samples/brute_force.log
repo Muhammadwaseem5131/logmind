@@ -1,0 +1,52 @@
+Aug 10 09:02:11 web01 sshd[2201]: Accepted password for alice from 10.0.0.14 port 51122 ssh2
+Aug 10 09:05:47 web01 sudo: alice : TTY=pts/0 ; PWD=/home/alice ; COMMAND=/usr/bin/apt update
+Aug 10 09:11:03 web01 sshd[2244]: Failed password for bob from 10.0.0.21 port 51840 ssh2
+Aug 10 09:11:19 web01 sshd[2244]: Accepted password for bob from 10.0.0.21 port 51840 ssh2
+Aug 10 09:18:52 web01 cron[2301]: session opened for user backup
+Aug 10 09:26:30 web01 sshd[2377]: Accepted publickey for deploy from 10.0.0.9 port 40122 ssh2
+Aug 10 09:34:12 web01 nginx: 10.0.0.31 - - [10/Aug/2026:09:34:12 +0000] "GET /health HTTP/1.1" 200 78
+Aug 10 09:41:58 web01 sshd[2455]: Accepted password for carol from 10.0.0.18 port 49002 ssh2
+Aug 10 09:55:04 web01 sudo: carol : TTY=pts/1 ; PWD=/srv ; COMMAND=/usr/bin/systemctl restart api
+Aug 10 10:07:22 web01 nginx: 10.0.0.31 - - [10/Aug/2026:10:07:22 +0000] "GET /health HTTP/1.1" 200 78
+Aug 10 10:23:41 web01 sshd[2610]: Accepted publickey for deploy from 10.0.0.9 port 40188 ssh2
+Aug 10 11:02:09 web01 cron[2688]: session opened for user backup
+Aug 10 12:15:33 web01 sshd[2740]: Accepted password for alice from 10.0.0.14 port 51244 ssh2
+Aug 10 13:48:07 web01 nginx: 10.0.0.31 - - [10/Aug/2026:13:48:07 +0000] "GET /health HTTP/1.1" 200 78
+Aug 10 14:22:01 web01 sshd[3001]: Failed password for invalid user admin from 198.51.100.77 port 33012 ssh2
+Aug 10 14:22:03 web01 sshd[3002]: Failed password for invalid user root from 198.51.100.77 port 33018 ssh2
+Aug 10 14:22:05 web01 sshd[3003]: Failed password for invalid user test from 198.51.100.77 port 33024 ssh2
+Aug 10 14:22:07 web01 sshd[3004]: Failed password for invalid user oracle from 198.51.100.77 port 33031 ssh2
+Aug 10 14:22:09 web01 sshd[3005]: Failed password for invalid user postgres from 198.51.100.77 port 33037 ssh2
+Aug 10 14:22:11 web01 sshd[3006]: Failed password for invalid user jenkins from 198.51.100.77 port 33044 ssh2
+Aug 10 14:22:13 web01 sshd[3007]: Failed password for invalid user git from 198.51.100.77 port 33051 ssh2
+Aug 10 14:22:15 web01 sshd[3008]: Failed password for invalid user ubuntu from 198.51.100.77 port 33058 ssh2
+Aug 10 14:24:40 web01 sshd[3040]: Failed password for invalid user tomcat from 198.51.100.90 port 41002 ssh2
+Aug 10 14:24:44 web01 sshd[3041]: Failed password for invalid user elastic from 198.51.100.90 port 41008 ssh2
+Aug 10 14:24:48 web01 sshd[3042]: Failed password for invalid user ftpuser from 198.51.100.90 port 41014 ssh2
+Aug 10 14:26:44 web01 sshd[3090]: Accepted password for alice from 10.0.0.14 port 51330 ssh2
+Aug 10 14:29:10 web01 sshd[3101]: Failed password for carol from 192.0.2.31 port 55002 ssh2
+Aug 10 14:29:38 web01 sshd[3102]: Failed password for carol from 192.0.2.31 port 55010 ssh2
+Aug 10 14:30:04 web01 sshd[3110]: Failed password for carol from 198.51.100.90 port 41120 ssh2
+Aug 10 14:30:31 web01 sshd[3111]: Failed password for carol from 192.0.2.77 port 38220 ssh2
+Aug 10 14:31:02 web01 sshd[3120]: Failed password for carol from 203.0.113.45 port 60122 ssh2
+Aug 10 14:31:05 web01 sshd[3121]: Failed password for carol from 203.0.113.45 port 60128 ssh2
+Aug 10 14:31:08 web01 sshd[3122]: Failed password for carol from 203.0.113.45 port 60134 ssh2
+Aug 10 14:31:11 web01 sshd[3123]: Failed password for carol from 203.0.113.45 port 60141 ssh2
+Aug 10 14:31:14 web01 sshd[3124]: Failed password for carol from 203.0.113.45 port 60147 ssh2
+Aug 10 14:31:17 web01 sshd[3125]: Failed password for carol from 203.0.113.45 port 60153 ssh2
+Aug 10 14:31:20 web01 sshd[3126]: Failed password for carol from 203.0.113.45 port 60159 ssh2
+Aug 10 14:31:23 web01 sshd[3127]: Failed password for carol from 203.0.113.45 port 60166 ssh2
+Aug 10 14:31:26 web01 sshd[3128]: Failed password for carol from 203.0.113.45 port 60172 ssh2
+Aug 10 14:31:29 web01 sshd[3129]: Failed password for carol from 203.0.113.45 port 60178 ssh2
+Aug 10 14:31:32 web01 sshd[3130]: Failed password for carol from 203.0.113.45 port 60184 ssh2
+Aug 10 14:31:35 web01 sshd[3131]: Failed password for carol from 203.0.113.45 port 60191 ssh2
+Aug 10 14:31:38 web01 sshd[3132]: Failed password for carol from 203.0.113.45 port 60197 ssh2
+Aug 10 14:31:41 web01 sshd[3133]: Failed password for carol from 203.0.113.45 port 60203 ssh2
+Aug 10 14:31:44 web01 sshd[3134]: Failed password for carol from 203.0.113.45 port 60209 ssh2
+Aug 10 14:31:47 web01 sshd[3135]: Accepted password for carol from 203.0.113.45 port 60215 ssh2
+Aug 10 14:32:02 web01 sudo: carol : TTY=pts/3 ; PWD=/root ; COMMAND=/usr/bin/cat /etc/shadow
+Aug 10 14:33:19 web01 sshd[3140]: session opened for user carol
+Aug 10 14:35:50 web01 nginx: 10.0.0.31 - - [10/Aug/2026:14:35:50 +0000] "GET /health HTTP/1.1" 200 78
+Aug 10 15:04:13 web01 sshd[3288]: Accepted publickey for deploy from 10.0.0.9 port 40501 ssh2
+Aug 10 15:47:36 web01 cron[3355]: session opened for user backup
+Aug 10 16:20:55 web01 sshd[3401]: Accepted password for alice from 10.0.0.14 port 51502 ssh2

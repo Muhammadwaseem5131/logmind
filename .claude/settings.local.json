@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/GEF/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/cb2e004b-f31c-4763-8a79-44bb6da19b87/e182b800-97e0-4b39-a783-2a1bfbe481e8/skills/ui-ux-pro-max/**)",
+      "Read(//c/Users/GEF/AppData/Local/Packages/Claude_pzs8sxrjxfjjc/LocalCache/Roaming/Claude/local-agent-mode-sessions/skills-plugin/**)",
+      "Bash(find \"C:/Users/GEF/AppData/Local/Packages/Claude_pzs8sxrjxfjjc/LocalCache/Roaming/Claude/local-agent-mode-sessions/skills-plugin/cb2e004b-f31c-4763-8a79-44bb6da19b87\" -maxdepth 4 -name \"search.py\" 2>/dev/null; find \"C:/Users/GEF/AppData\" -maxdepth 8 -path \"*ui-ux-pro-max*\" -name \"*.py\" 2>/dev/null | head)"
+    ]
+  }
+}
