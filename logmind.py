@@ -465,54 +465,94 @@ def summarize(events, findings):
 
 # ------------------------------------------------------------ AI summary ----
 
-def ai_provider(key):
-    """Which service a key belongs to, from its own prefix. Google keys start
-    AIza, Anthropic keys sk-ant-; anything else is a guess, so say so."""
-    if key.startswith("AIza"):
-        return "gemini"
+GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
+
+
+def ai_providers(key):
+    """Services to try for this key, most likely first.
+
+    A prefix is a hint, never a rule. Google has issued keys beginning AIza and
+    others beginning AQ., and any provider can change format tomorrow - so an
+    unfamiliar prefix means try both rather than refuse a key that works.
+    """
     if key.startswith("sk-ant-"):
-        return "anthropic"
-    return None
+        return ["anthropic"]
+    if key.startswith(("AIza", "AQ.", "ya29.")):
+        return ["gemini"]
+    return ["gemini", "anthropic"]
+
+
+def ai_request(provider, key, prompt=None):
+    """Build a request for one provider. prompt=None asks for the model list -
+    authenticated, no tokens spent - which is how a key is verified.
+    Returns (request, extract) where extract pulls the text from the reply."""
+    if provider == "gemini":
+        head = {"x-goog-api-key": key}          # header, never a query string
+        if prompt is None:
+            return urllib.request.Request(f"{GEMINI_BASE}/models", headers=head), None
+        head["content-type"] = "application/json"
+        return (urllib.request.Request(
+            f"{GEMINI_BASE}/models/{GEMINI_MODEL}:generateContent",
+            data=json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode(),
+            headers=head),
+            lambda d: d["candidates"][0]["content"]["parts"][0]["text"])
+
+    head = {"x-api-key": key, "anthropic-version": "2023-06-01"}
+    if prompt is None:
+        return urllib.request.Request("https://api.anthropic.com/v1/models",
+                                      headers=head), None
+    head["content-type"] = "application/json"
+    return (urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=json.dumps({"model": ANTHROPIC_MODEL, "max_tokens": 400,
+                         "messages": [{"role": "user", "content": prompt}]}).encode(),
+        headers=head),
+        lambda d: d["content"][0]["text"])
+
+
+def ai_call(req, extract):
+    """One provider call under a hard deadline. Raises on failure."""
+    pool = ThreadPoolExecutor(1)
+    try:
+        def go():
+            with urllib.request.urlopen(req, timeout=AI_TIMEOUT) as r:
+                return extract(json.load(r)) if extract else True
+        return pool.submit(go).result(timeout=AI_TIMEOUT + 2)
+    finally:
+        pool.shutdown(wait=False)
+
+
+def ai_reason(exc):
+    """Turn a provider's failure into something a person can act on. Gemini
+    answers a bad key with 400, Anthropic with 401 - same meaning to the
+    person holding it."""
+    if isinstance(exc, FuturesTimeout):
+        return f"no response within {AI_TIMEOUT}s - check your network"
+    msg = str(exc)
+    if any(c in msg for c in ("400", "401", "403")):
+        return "the key was rejected"
+    if "429" in msg:
+        return "rate limited - try again shortly"
+    if "404" in msg:
+        return "the model name was not recognised"
+    return msg
 
 
 def ai_check(key):
-    """Is this key usable? Asks the provider's model list - an authenticated
-    call that spends no tokens - and returns (ok, message). The key itself is
-    never part of the answer."""
+    """Is this key usable? Tries each plausible provider and reports the first
+    that answers. The key is never part of the answer."""
     key = (key or "").strip()
     if not key:
         return False, "No key entered."
-    provider = ai_provider(key)
-    if provider is None:
-        return False, ("Not a recognised key. Gemini keys start AIza, "
-                       "Anthropic keys start sk-ant-.")
-    if provider == "gemini":
-        req = urllib.request.Request(
-            "https://generativelanguage.googleapis.com/v1beta/models",
-            headers={"x-goog-api-key": key})
-    else:
-        req = urllib.request.Request(
-            "https://api.anthropic.com/v1/models",
-            headers={"x-api-key": key, "anthropic-version": "2023-06-01"})
-
-    pool = ThreadPoolExecutor(1)
-    try:
-        pool.submit(lambda: urllib.request.urlopen(
-            req, timeout=AI_TIMEOUT).close()).result(timeout=AI_TIMEOUT + 2)
-        return True, f"Connected to {provider}."
-    except FuturesTimeout:
-        return False, f"No response within {AI_TIMEOUT}s - check your network."
-    except Exception as exc:
-        msg = str(exc)
-        # Gemini answers a bad key with 400, Anthropic with 401 - both mean the
-        # same thing to the person holding the key.
-        if any(c in msg for c in ("400", "401", "403")):
-            msg = "the provider rejected this key"
-        elif "429" in msg:
-            msg = "rate limited - try again shortly"
-        return False, f"Not connected ({msg})."
-    finally:
-        pool.shutdown(wait=False)
+    last = ""
+    for provider in ai_providers(key):
+        req, extract = ai_request(provider, key)
+        try:
+            ai_call(req, extract)
+            return True, f"Connected to {provider}."
+        except Exception as exc:
+            last = f"{provider}: {ai_reason(exc)}"
+    return False, f"Not connected ({last})."
 
 
 def ai_summary(findings, key=None):
@@ -521,65 +561,25 @@ def ai_summary(findings, key=None):
     The key comes from the user - the dashboard field, an X-Api-Key header, or
     an environment variable. It travels to that provider and nowhere else: it
     is never stored on disk, written to a log line, echoed back into a page, or
-    included in an exported report, and it is never placed in a URL where it
+    included in an exported report, and it never appears in a URL where it
     could reach browser history or an error message.
     """
     key = ((key or "").strip() or os.environ.get("GEMINI_API_KEY")
            or os.environ.get("ANTHROPIC_API_KEY") or "")
     if not key or not findings:
         return None
-    provider = ai_provider(key)
-    if provider is None:
-        return ("AI summary unavailable: that key is not recognised. Use a "
-                "Google Gemini key (starts AIza) or an Anthropic key "
-                "(starts sk-ant-).")
     prompt = ("You are a SOC analyst briefing a junior admin. In at most 4 "
               "sentences of plain English, say what these log findings mean "
               "together and what to do first:\n\n" +
               json.dumps([{k: f[k] for k in ("severity", "title", "what")}
                           for f in findings], indent=1))
-
-    if provider == "gemini":
-        # Key goes in a header, never in the query string: a URL would end up
-        # in error messages and proxy logs.
-        req = urllib.request.Request(
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{GEMINI_MODEL}:generateContent",
-            data=json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode(),
-            headers={"x-goog-api-key": key, "content-type": "application/json"})
-        pick = lambda d: d["candidates"][0]["content"]["parts"][0]["text"]
-    else:
-        req = urllib.request.Request(
-            "https://api.anthropic.com/v1/messages",
-            data=json.dumps({"model": ANTHROPIC_MODEL, "max_tokens": 400,
-                             "messages": [{"role": "user", "content": prompt}]}).encode(),
-            headers={"x-api-key": key, "anthropic-version": "2023-06-01",
-                     "content-type": "application/json"})
-        pick = lambda d: d["content"][0]["text"]
-
-    def call():
-        with urllib.request.urlopen(req, timeout=AI_TIMEOUT) as r:
-            return pick(json.load(r))
-
-    # Hard deadline in a worker thread: a slow DNS lookup or a hung proxy can
-    # outlast urlopen's own timeout, and the report must never wait on it.
-    pool = ThreadPoolExecutor(1)
-    try:
-        return pool.submit(call).result(timeout=AI_TIMEOUT + 2)
-    except FuturesTimeout:
-        return (f"AI summary unavailable: no response within {AI_TIMEOUT}s. "
-                f"The findings below are unaffected.")
-    except Exception as exc:        # never let the network kill the report
-        msg = str(exc)
-        if "401" in msg or "403" in msg or "400" in msg:
-            msg = f"the {provider} key was rejected"
-        elif "404" in msg:
-            msg = f"{provider} did not recognise the model name"
-        elif "429" in msg:
-            msg = "rate limited - try again shortly"
-        return f"AI summary unavailable ({msg}). The findings below are unaffected."
-    finally:
-        pool.shutdown(wait=False)   # don't block the response on a dead socket
+    last = ""
+    for provider in ai_providers(key):
+        try:
+            return ai_call(*ai_request(provider, key, prompt))
+        except Exception as exc:        # never let the network kill the report
+            last = f"{provider}: {ai_reason(exc)}"
+    return f"AI summary unavailable ({last}). The findings below are unaffected."
 
 
 # --------------------------------------------------------------- rendering --
@@ -1209,10 +1209,10 @@ def test():
     assert 'id="delKey"' in ui, "the delete-key control must exist"
     assert 'id="connKey"' in ui, "the connect control must exist"
     assert ai_check("") == (False, "No key entered.")      # no network needed
-    assert ai_check("not-a-key")[0] is False
-    assert ai_provider("AIzaSyABC") == "gemini"
-    assert ai_provider("sk-ant-api03-x") == "anthropic"
-    assert ai_provider("guess") is None
+    assert ai_providers("AIzaSyABC") == ["gemini"]
+    assert ai_providers("AQ.Ab8xyz") == ["gemini"], "newer Google key format"
+    assert ai_providers("sk-ant-api03-x") == ["anthropic"]
+    assert ai_providers("unfamiliar") == ["gemini", "anthropic"],         "an unknown prefix must be tried, not refused"
 
     # a key must never survive into anything the tool produces
     SENTINEL = "AIzaSyTESTKEY_MUST_NEVER_APPEAR"

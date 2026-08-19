@@ -225,10 +225,15 @@ Open **"Optional — add an AI key for an analyst summary"** under the log box
 and paste a key from either provider — the one it belongs to is detected from
 the key itself:
 
-| Provider | Key looks like | Get one |
-|---|---|---|
-| **Google Gemini** (free tier) | `AIza…` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
-| **Anthropic** | `sk-ant-…` | [console.anthropic.com](https://console.anthropic.com/settings/keys) |
+| Provider | Get a key |
+|---|---|
+| **Google Gemini** (free tier) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| **Anthropic** | [console.anthropic.com](https://console.anthropic.com/settings/keys) |
+
+There is nothing to select. A familiar prefix routes the key straight to its
+provider (`sk-ant-…` to Anthropic, `AIza…` / `AQ.…` to Google); an unfamiliar
+one is **tried** against both rather than refused, because providers change key
+formats and a working key should never be rejected by a guess.
 
 `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` still work for scripted use, and
 `POST /api/analyze` accepts an `X-Api-Key` header.

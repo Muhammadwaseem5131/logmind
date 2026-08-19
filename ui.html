@@ -351,7 +351,7 @@ tbody tr:last-child td{border-bottom:0}
       <summary>Optional &mdash; add an AI key for an analyst summary</summary>
       <div class="row">
         <input type="password" id="apikey" name="key"
-          placeholder="AIza... (Gemini)  or  sk-ant-... (Anthropic)"
+          placeholder="Paste a Google Gemini or Anthropic API key"
           autocomplete="off" autocapitalize="off" spellcheck="false"
           aria-describedby="keyhelp">
         <button type="button" class="btn ghost" id="showKey">Show</button>
@@ -364,7 +364,8 @@ tbody tr:last-child td{border-bottom:0}
       <p class="hint" id="keyhelp">Detection works fully offline without a key.
         With one, LogMind sends <b>only the findings</b> &mdash; never your raw
         log &mdash; to the provider your key belongs to, and adds a written
-        summary. Free Gemini key:
+        summary. The provider is worked out from the key, so there is nothing
+        to choose. Free Gemini key:
         <a href="https://aistudio.google.com/apikey" target="_blank"
         rel="noopener">aistudio.google.com/apikey</a> &middot; Anthropic:
         <a href="https://console.anthropic.com/settings/keys" target="_blank"
