@@ -1239,6 +1239,31 @@ def serve(port=8000, live=False):
 
 # ------------------------------------------------------------------- check --
 
+def check_ui_script():
+    """Parse the dashboard's JavaScript. A single bad escape kills the whole
+    script block, and every control on the page goes dead silently - which has
+    happened twice. Uses node when present; CI runners always have it."""
+    import shutil
+    import subprocess
+    import tempfile
+    node = shutil.which("node")
+    body = read_text(os.path.join(HERE, "ui.html"))
+    script = body.rsplit("<script>", 1)[-1].split("</script>")[0]
+    if not node:
+        print("  ui javascript      skipped (node not installed)")
+        return
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False,
+                                     encoding="utf-8") as f:
+        f.write(script)
+        path = f.name
+    try:
+        r = subprocess.run([node, "--check", path], capture_output=True, text=True)
+        assert r.returncode == 0, "ui.html script does not parse: " + r.stderr
+        print("  ui javascript      parses")
+    finally:
+        os.unlink(path)
+
+
 def test():
     expect = {"brute_force.log": {"brute_force_success", "account_probing", "volume_spike"},
               "web_attack.log": {"web_attack"},
@@ -1298,6 +1323,7 @@ def test():
                      text_report(rep), render_results(rep), page("a log", "")):
         assert SENTINEL not in artefact and "sk-ant-api" not in artefact, \
             "an API key reached an exported artefact"
+    check_ui_script()
     print("  key handling       ok")
     print("ok")
 

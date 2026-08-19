@@ -527,9 +527,7 @@ if ($('#aiReview')) $('#aiReview').onclick = async e => {
     return;
   }
   if (!confirm('This sends the log lines the rules did NOT flag to your AI ' +
-               'provider, so it can tell you if anything was missed.
-
-' +
+               'provider, so it can tell you if anything was missed. ' +
                'The findings-only summary does not do this. Continue?')) return;
   btn.disabled = true; btn.textContent = 'Reviewing...';
   card.innerHTML = '<div class="card"><p class="hint">Asking the model to ' +
