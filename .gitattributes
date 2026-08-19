@@ -5,3 +5,9 @@
 *.log   text eol=lf
 *.bat   text eol=crlf
 *.ps1   text eol=crlf
+
+# demo.html is build output from build_demo.py, not hand-written source.
+# Without this it dominates the language statistics and the repository reads
+# as an HTML project instead of a Python one.
+demo.html          linguist-generated=true
+design-system/**   linguist-documentation=true
