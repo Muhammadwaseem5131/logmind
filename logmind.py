@@ -828,7 +828,7 @@ def text_report(rep):
 # -------------------------------------------------------------- live mode ---
 
 LIVE = {"thread": None, "window": None, "sources": [], "started": None,
-        "admin": False}
+        "admin": False, "sim": None}
 
 
 def live_start():
@@ -837,7 +837,9 @@ def live_start():
     if LIVE["thread"] and LIVE["thread"].is_alive():
         return LIVE["sources"]
     import watch                              # imported late: watch imports us
-    paths = watch.discover() or [os.path.join(HERE, "demo.log")]
+    # demo.log is always watched: it is where the Simulate button writes, and
+    # an absent file costs nothing to poll.
+    paths = watch.discover() + [os.path.join(HERE, "demo.log")]
     sources = [watch.FileSource(p) for p in paths]
 
     # With administrator rights the Windows Security log is readable too - the
@@ -872,6 +874,25 @@ def live_start():
     return paths
 
 
+def live_simulate(name="brute"):
+    """Write a fake attack into demo.log from the dashboard. Demo only - it
+    writes log lines, it does not attack anything."""
+    if LIVE["sim"] and LIVE["sim"].is_alive():
+        return
+    if not (LIVE["thread"] and LIVE["thread"].is_alive()):
+        live_start()
+    import simulate                          # imports evaluate, which imports us
+
+    def run():
+        try:
+            simulate.simulate(name, os.path.join(HERE, "demo.log"), speed=0.3)
+        except Exception as exc:
+            print(f"simulation failed: {exc}")
+
+    LIVE["sim"] = threading.Thread(target=run, daemon=True)
+    LIVE["sim"].start()
+
+
 def live_stop():
     LIVE["thread"] = None                     # the loop sees this and exits
 
@@ -896,6 +917,21 @@ def live_page(fragment=False):
              '<form method="post" action="/live/start" style="margin:0">'
              '<button class="btn">Start monitoring</button></form>')
     head += f'</div><p class="note">Watching: {srcs or "nothing yet"}</p>'
+
+    # Demo control: writes a known attack into demo.log so a live audience can
+    # watch a finding appear. Labelled as a demo, because that is what it is.
+    import simulate
+    running_sim = bool(LIVE["sim"] and LIVE["sim"].is_alive())
+    opts = "".join(f'<option value="{k}">{k} &mdash; {html.escape(b)}</option>'
+                   for k, (_, b) in simulate.SCENARIOS.items())
+    head += (
+        f'<form class="simbar" method="post" action="/live/simulate">'
+        f'<span class="simlabel">{icon("bolt")}Demo</span>'
+        f'<select name="s" aria-label="Attack scenario">{opts}</select>'
+        f'<button class="btn"{" disabled" if running_sim else ""}>'
+        f'{"Writing attack..." if running_sim else "Simulate attack"}</button>'
+        f'<span class="hint">Writes fake log lines into demo.log. Nothing is '
+        f'attacked.</span></form>')
     if running and not LIVE["admin"]:
         head += (
             '<p class="note">Running without administrator rights, so the logs '
@@ -1012,7 +1048,12 @@ def serve(port=8000, live=False):
                 return self.send(json.dumps(report_json(rep, ai), indent=1),
                                  "application/json")
             if self.path.startswith("/live/"):
-                live_start() if self.path.endswith("start") else live_stop()
+                if self.path.endswith("simulate"):
+                    live_simulate(qs(text).get("s", ["brute"])[0])
+                elif self.path.endswith("start"):
+                    live_start()
+                else:
+                    live_stop()
                 self.send_response(303)
                 self.send_header("Location", "/live")
                 self.end_headers()

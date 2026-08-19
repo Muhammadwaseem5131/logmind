@@ -153,10 +153,18 @@ Run LogMind in one window and the simulator in another. It writes a real
 attack pattern into the watched log, one line at a time, so the finding
 appears while you watch. Nothing is attacked — these are log lines.
 
+**From the dashboard:** open the Live monitor page, pick a scenario in the
+**Demo** bar, click **Simulate attack**. The finding appears below it a few
+seconds later. Nothing else to open.
+
+**From a terminal**, if you prefer two windows:
+
 ```bash
 python logmind.py --live      # window 1
 python simulate.py            # window 2
 ```
+
+**By double-click:** `attack.bat` on Windows (start LogMind first).
 
 | Scenario | What it writes |
 |---|---|
