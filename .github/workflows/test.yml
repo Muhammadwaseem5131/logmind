@@ -1,0 +1,50 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.12"]
+        include:
+          # prove the floor the README claims; 3.8 is not built for arm macOS
+          - os: ubuntu-latest
+            python: "3.8"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: No third-party imports may creep in
+        run: python -c "import logmind, watch, evaluate, build_demo; print('stdlib only')"
+
+      - name: Detector self-check
+        run: python logmind.py --test
+
+      - name: Live watch self-check
+        run: python watch.py --test
+
+      - name: Accuracy benchmark
+        run: python evaluate.py
+
+      - name: Demo page builds
+        run: python build_demo.py
+
+      - name: Reports render from any working directory
+        run: python "${{ github.workspace }}/logmind.py" "${{ github.workspace }}/samples/insider.log"
+        working-directory: ${{ runner.temp }}
+
+      - name: start.sh is executable
+        if: runner.os != 'Windows'
+        run: test -x start.sh && head -1 start.sh | grep -q '^#!/bin/sh$'

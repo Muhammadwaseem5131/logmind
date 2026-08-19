@@ -1,5 +1,10 @@
 # LogMind — AI Security Log Anomaly Explainer
 
+[![tests](https://github.com/Muhammadwaseem5131/logmind/actions/workflows/test.yml/badge.svg)](https://github.com/Muhammadwaseem5131/logmind/actions/workflows/test.yml)
+[![live demo](https://img.shields.io/badge/live%20demo-open-1D4ED8)](https://muhammadwaseem5131.github.io/logmind/)
+[![python](https://img.shields.io/badge/python-3.8%2B-3776AB)](https://python.org)
+[![license](https://img.shields.io/badge/license-MIT-555)](LICENSE)
+
 Detects unusual patterns in security logs and explains them in plain language,
 with a risk level, MITRE ATT&CK mapping, and recommended actions.
 
@@ -27,8 +32,12 @@ to install.
 
 The dashboard opens in your browser. Press **Load demo log** to see it work.
 
-**[See a live snapshot of three analysed attack logs →](demo.html)**
-(no install needed; rebuild it with `python build_demo.py`)
+**[Open the live demo →](https://muhammadwaseem5131.github.io/logmind/)** —
+three real attack logs, already analysed, no install needed. Rebuilt from the
+samples on every push by the `demo page` workflow.
+
+Every push also runs the full test suite on **Linux, macOS, and Windows**
+across Python 3.8 and 3.12 — the badge above is that result, not a claim.
 
 ## How it works
 
