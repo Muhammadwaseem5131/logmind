@@ -31,7 +31,8 @@ SAMPLES = os.path.join(HERE, "samples")
 MAX_BYTES = 5 * 1024 * 1024     # reject bigger uploads instead of eating RAM
 MAX_LINES = 50_000              # analyse a prefix of huge logs, and say so
 AI_TIMEOUT = 20                 # seconds before the report ships without a summary
-GEMINI_MODEL = "gemini-2.0-flash"        # free tier at aistudio.google.com
+GEMINI_MODEL = "gemini-2.0-flash"        # last-resort name; the account's
+                                         # own model list wins - see gemini_model()
 ANTHROPIC_MODEL = "claude-sonnet-5"
 
 # ---------------------------------------------------------------- parsing ---
@@ -482,6 +483,31 @@ def ai_providers(key):
     return ["gemini", "anthropic"]
 
 
+_GEMINI_MODEL = None            # resolved once per run, never the key itself
+
+
+def gemini_model(key):
+    """Ask the account which models it can actually use, instead of trusting a
+    name baked into this file. Google renames and retires models, and a stale
+    constant fails as 'model not recognised' with a perfectly good key."""
+    global _GEMINI_MODEL
+    if _GEMINI_MODEL:
+        return _GEMINI_MODEL
+    try:
+        req = urllib.request.Request(f"{GEMINI_BASE}/models",
+                                     headers={"x-goog-api-key": key})
+        with urllib.request.urlopen(req, timeout=AI_TIMEOUT) as r:
+            models = json.load(r).get("models", [])
+        usable = [m["name"].split("/")[-1] for m in models
+                  if "generateContent" in m.get("supportedGenerationMethods", [])]
+        # prefer a flash model: fastest and the one the free tier allows most of
+        _GEMINI_MODEL = next((m for m in usable if "flash" in m and "thinking" not in m),
+                             usable[0] if usable else GEMINI_MODEL)
+    except Exception:
+        _GEMINI_MODEL = GEMINI_MODEL          # fall back to the compiled-in name
+    return _GEMINI_MODEL
+
+
 def ai_request(provider, key, prompt=None):
     """Build a request for one provider. prompt=None asks for the model list -
     authenticated, no tokens spent - which is how a key is verified.
@@ -492,7 +518,7 @@ def ai_request(provider, key, prompt=None):
             return urllib.request.Request(f"{GEMINI_BASE}/models", headers=head), None
         head["content-type"] = "application/json"
         return (urllib.request.Request(
-            f"{GEMINI_BASE}/models/{GEMINI_MODEL}:generateContent",
+            f"{GEMINI_BASE}/models/{gemini_model(key)}:generateContent",
             data=json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode(),
             headers=head),
             lambda d: d["candidates"][0]["content"]["parts"][0]["text"])

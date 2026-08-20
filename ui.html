@@ -520,10 +520,11 @@ const applyFilter = want => {
     c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); });
   $$('.card[data-sev]').forEach(c => c.hidden = want !== 'All' && c.dataset.sev !== want);
 };
-$$('.chip').forEach(c => c.onclick = () => {
+const onChip = c => {
   applyFilter(c.dataset.sev);
   history.replaceState(null, '', c.dataset.sev === 'All' ? location.pathname
-    : '#sev=' + c.dataset.sev); });
+    : '#sev=' + c.dataset.sev);
+};
 const fromHash = (location.hash.match(/sev=(High|Medium|Low)/) || [])[1];
 if (fromHash) applyFilter(fromHash);
 
@@ -572,8 +573,8 @@ async function runReview(btn, card) {
 // One click runs it. What it sends is printed permanently under the button,
 // so consent is informed without a second step to miss - the extra click was
 // itself the thing that read as "the button does nothing".
-if ($('#aiReview')) $('#aiReview').onclick = e => {
-  const btn = e.currentTarget, card = $('#reviewCard');
+const onReview = btn => {
+  const card = $('#reviewCard');
   if (reviewKey()) { runReview(btn, card); return; }
 
   // No key: ask for it right here rather than sending the reader elsewhere.
@@ -656,8 +657,8 @@ function offerManualCopy(text, label) {
   slot.scrollIntoView({block: 'center', behavior: 'smooth'});
 }
 
-if ($('#copyMd')) $('#copyMd').onclick = e => {
-  const btn = e.currentTarget, text = raw('reportMd');
+const onCopy = btn => {
+  const text = raw('reportMd');
   if (!text) { flash(btn, 'No report to copy'); return; }
   copyText(text).then(ok => {
     flash(btn, ok ? 'Copied to clipboard' : 'Showing it instead');
@@ -665,8 +666,8 @@ if ($('#copyMd')) $('#copyMd').onclick = e => {
   });
 };
 
-if ($('#dlJson')) $('#dlJson').onclick = e => {
-  const btn = e.currentTarget, text = raw('reportJson');
+const onDownload = btn => {
+  const text = raw('reportJson');
   try {
     JSON.parse(text);                       // never hand over a broken file
   } catch (err) {
@@ -689,6 +690,18 @@ if ($('#dlJson')) $('#dlJson').onclick = e => {
     offerManualCopy(text, 'JSON report ready to copy');
   }
 };
+
+// The live view replaces the results every few seconds, which throws away any
+// handler bound directly to a button. Listening on the document instead means
+// the controls keep working however often the contents are rebuilt.
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('#copyMd, #dlJson, #aiReview, .chip');
+  if (!el || el.disabled) return;
+  if (el.id === 'copyMd')   return onCopy(el);
+  if (el.id === 'dlJson')   return onDownload(el);
+  if (el.id === 'aiReview') return onReview(el);
+  if (el.classList.contains('chip')) return onChip(el);
+});
 </script>
 </body>
 </html>
