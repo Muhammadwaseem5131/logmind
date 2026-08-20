@@ -475,6 +475,10 @@ if (localStorage.logmindKey) {
   $('#keystate').textContent =
     'Key kept for this browser tab. Tick Remember to keep it after closing.';
 }
+// The server never sends the key back, so if one is held it is restored here
+// and the panel opened - otherwise the AI buttons report "key needed" right
+// after an analysis the user typed a key into, which reads as a broken button.
+if (key.value && $('#results')) $('#aibox').open = true;
 // Survive a refresh without being written to disk: sessionStorage lasts for
 // this tab only. Ticking Remember is what makes it persist.
 key.addEventListener('input', () => {
@@ -521,7 +525,9 @@ $('#delKey').onclick = () => {
   key.focus();
 };
 panel.addEventListener('submit', () => {
-  if (remember.checked && key.value.trim()) localStorage.logmindKey = key.value.trim();
+  const v = key.value.trim();
+  if (v) sessionStorage.logmindKey = v;        // survive the round trip
+  if (remember.checked && v) localStorage.logmindKey = v;
   else localStorage.removeItem('logmindKey'); });
 }
 
@@ -639,10 +645,41 @@ function copyText(text) {
   }
 }
 
+// Where a failed export explains itself, right under the buttons.
+function exportSlot() {
+  let s = $('#exportOut');
+  if (!s) {
+    s = document.createElement('div');
+    s.id = 'exportOut';
+    ($('.side') || $('main')).appendChild(s);
+  }
+  return s;
+}
+
+// Last resort that always works: show the text, already selected, and let the
+// reader press Ctrl+C. Browsers can refuse the clipboard API; they cannot
+// refuse this.
+function offerManualCopy(text, label) {
+  const slot = exportSlot();
+  slot.innerHTML =
+    '<div class="card"><header><span class="sev">Copy</span>' +
+    '<h3>' + label + '</h3></header>' +
+    '<p class="hint">Your browser refused clipboard access. The text is ' +
+    'selected below &mdash; press <b>Ctrl+C</b> (or Cmd+C) to copy it.</p>' +
+    '<textarea id="manualCopy" style="height:180px"></textarea></div>';
+  const box = $('#manualCopy');
+  box.value = text;
+  box.focus(); box.select();
+  slot.scrollIntoView({block: 'center', behavior: 'smooth'});
+}
+
 if ($('#copyMd')) $('#copyMd').onclick = e => {
-  const btn = e.currentTarget;
-  copyText(raw('reportMd')).then(ok =>
-    flash(btn, ok ? 'Copied to clipboard' : 'Copy blocked by the browser'));
+  const btn = e.currentTarget, text = raw('reportMd');
+  if (!text) { flash(btn, 'No report to copy'); return; }
+  copyText(text).then(ok => {
+    flash(btn, ok ? 'Copied to clipboard' : 'Showing it instead');
+    if (!ok) offerManualCopy(text, 'Report ready to copy');
+  });
 };
 
 if ($('#dlJson')) $('#dlJson').onclick = e => {
@@ -653,12 +690,21 @@ if ($('#dlJson')) $('#dlJson').onclick = e => {
     flash(btn, 'Report data is invalid');
     return;
   }
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([text], {type: 'application/json'}));
-  a.download = 'logmind-report.json';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  flash(btn, 'Downloaded');
+  try {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], {type: 'application/json'}));
+    a.download = 'logmind-report.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    exportSlot().innerHTML =
+      '<p class="note">Saved as <b>logmind-report.json</b>, normally in your ' +
+      'Downloads folder. If nothing appeared, your browser blocked the ' +
+      'download &mdash; use <b>Copy report</b> instead.</p>';
+    flash(btn, 'Downloaded');
+  } catch (err) {
+    flash(btn, 'Showing it instead');
+    offerManualCopy(text, 'JSON report ready to copy');
+  }
 };
 </script>
 </body>
