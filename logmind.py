@@ -850,6 +850,10 @@ def render_results(rep, ai=None, static=False, idx=""):
                    '<button id="aiReview" class="btn ghost" type="button">'
                    f'{icon("search")}AI: review what the rules ignored</button>'
                    '</div>'
+                   '<p class="note">Sends the log lines your rules did '
+                   '<b>not</b> flag to your AI provider, so it can say whether '
+                   'anything was missed. Needs an API key. The findings-only '
+                   'summary never sends log lines.</p>'
                    '<div id="reviewCard"></div>')
 
     if not fs:

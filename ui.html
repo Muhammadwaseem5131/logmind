@@ -275,6 +275,9 @@ tbody tr:last-child td{border-bottom:0}
   font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .simbar select{flex:1 1 260px;max-width:420px}
 .simbar .hint{flex:1 1 100%}
+#revKey{flex:1 1 240px;font:13px var(--mono);background:var(--bg);
+  color:var(--fg);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:var(--s2) var(--s3);min-height:40px}
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   *{animation:none!important;transition-duration:1ms!important}
@@ -560,34 +563,37 @@ async function runReview(btn, card) {
   btn.disabled = false; btn.textContent = 'AI: review what the rules ignored';
 }
 
+// One click runs it. What it sends is printed permanently under the button,
+// so consent is informed without a second step to miss - the extra click was
+// itself the thing that read as "the button does nothing".
 if ($('#aiReview')) $('#aiReview').onclick = e => {
   const btn = e.currentTarget, card = $('#reviewCard');
+  if (reviewKey()) { runReview(btn, card); return; }
 
-  // No key yet: open the box and put the cursor in it rather than refusing.
-  if (!reviewKey()) {
-    const box = $('#aibox');
-    if (box) { box.open = true; $('#apikey').focus(); }
-    card.scrollIntoView({block: 'center', behavior: 'smooth'});
-    card.innerHTML = '<div class="card"><p class="hint bad">Paste your API ' +
-      'key in the box above, then press this button again. Tick ' +
-      '<b>Remember in this browser</b> to keep it for next time &mdash; the ' +
-      'field is cleared after every analysis on purpose.</p></div>';
-    return;
-  }
-
-  // Consent inline rather than in a browser dialog: this is the one feature
-  // that sends log lines, so it must be an explicit, visible choice.
-  card.innerHTML =
-    '<div class="card"><header><span class="sev">Confirm</span>' +
-    '<h3>This one sends log lines</h3></header>' +
-    '<p>The lines your rules did <b>not</b> flag will be sent to your AI ' +
-    'provider, so it can say whether anything was missed. The findings-only ' +
-    'summary never does this.</p>' +
-    '<div class="row"><button class="btn" id="revGo">Send and review</button>' +
-    '<button class="btn ghost" id="revNo">Cancel</button></div></div>';
-  $('#revGo').onclick = () => runReview(btn, card);
-  $('#revNo').onclick = () => { card.innerHTML = ''; };
+  // No key: ask for it right here rather than sending the reader elsewhere.
   card.scrollIntoView({block: 'center', behavior: 'smooth'});
+  card.innerHTML =
+    '<div class="card"><header><span class="sev">Key needed</span>' +
+    '<h3>Paste an AI key to run the review</h3></header>' +
+    '<p class="hint">Free Google Gemini key: ' +
+    '<a href="https://aistudio.google.com/apikey" target="_blank" ' +
+    'rel="noopener">aistudio.google.com/apikey</a>. The key field at the top ' +
+    'is cleared after every analysis on purpose, which is why it may look ' +
+    'empty.</p><div class="row">' +
+    '<input type="password" id="revKey" placeholder="Paste the key here" ' +
+    'autocomplete="off" spellcheck="false">' +
+    '<button class="btn" id="revGo">Save and review</button></div></div>';
+  const field = $('#revKey');
+  field.focus();
+  const go = () => {
+    const v = field.value.trim();
+    if (!v) { field.focus(); return; }
+    sessionStorage.logmindKey = v;               // survives this tab
+    if ($('#apikey')) $('#apikey').value = v;
+    runReview(btn, card);
+  };
+  $('#revGo').onclick = go;
+  field.addEventListener('keydown', ev => { if (ev.key === 'Enter') go(); });
 };
 
 // export -----------------------------------------------------------------
