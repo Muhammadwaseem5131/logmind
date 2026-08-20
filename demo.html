@@ -614,17 +614,52 @@ if ($('#aiReview')) $('#aiReview').onclick = e => {
 };
 
 // export -----------------------------------------------------------------
-const raw = id => (document.getElementById(id) || {}).textContent;
+// .value, not .textContent: the payload is stored escaped so no log line can
+// close the tag early, and .value hands it back decoded.
+const raw = id => (document.getElementById(id) || {}).value || '';
 const flash = (btn, msg) => { const t = btn.innerHTML; btn.textContent = msg;
-  setTimeout(() => btn.innerHTML = t, 1400); };
-if ($('#copyMd')) $('#copyMd').onclick = e =>
-  navigator.clipboard.writeText(raw('reportMd'))
-    .then(() => flash(e.currentTarget, 'Copied'))
-    .catch(() => flash(e.currentTarget, 'Copy blocked'));
-if ($('#dlJson')) $('#dlJson').onclick = () => {
+  setTimeout(() => btn.innerHTML = t, 1600); };
+
+// Some contexts refuse the async clipboard API; selecting a real element and
+// asking the document to copy still works there.
+function copyText(text) {
+  if (navigator.clipboard) {
+    return navigator.clipboard.writeText(text).then(() => true, () => legacy());
+  }
+  return Promise.resolve(legacy());
+  function legacy() {
+    const t = document.createElement('textarea');
+    t.value = text;
+    t.style.cssText = 'position:fixed;top:-1000px';
+    document.body.appendChild(t); t.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    t.remove();
+    return ok;
+  }
+}
+
+if ($('#copyMd')) $('#copyMd').onclick = e => {
+  const btn = e.currentTarget;
+  copyText(raw('reportMd')).then(ok =>
+    flash(btn, ok ? 'Copied to clipboard' : 'Copy blocked by the browser'));
+};
+
+if ($('#dlJson')) $('#dlJson').onclick = e => {
+  const btn = e.currentTarget, text = raw('reportJson');
+  try {
+    JSON.parse(text);                       // never hand over a broken file
+  } catch (err) {
+    flash(btn, 'Report data is invalid');
+    return;
+  }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([raw('reportJson')], {type:'application/json'}));
-  a.download = 'logmind-report.json'; a.click(); URL.revokeObjectURL(a.href); };
+  a.href = URL.createObjectURL(new Blob([text], {type: 'application/json'}));
+  a.download = 'logmind-report.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  flash(btn, 'Downloaded');
+};
 </script>
 </body>
 </html>

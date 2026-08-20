@@ -916,11 +916,14 @@ def render_results(rep, ai=None, static=False, idx=""):
     out.append('</div>')                                        # /grid
 
     if not static:
-        payload = json.dumps(report_json(rep, ai))
-        out.append(f'<script type="application/json" id="reportJson">'
-                   f'{html.escape(payload)}</script>')
-        out.append(f'<script type="text/plain" id="reportMd">'
-                   f'{html.escape(markdown_report(rep, ai))}</script>')
+        # Hidden textareas, not <script> blocks. Escaping is required so a log
+        # line can never close the tag early, and a textarea's .value gives the
+        # text back decoded - inside a <script>, the escaped entities stay
+        # literal and the exported JSON is not JSON.
+        out.append(f'<textarea id="reportJson" hidden>'
+                   f'{html.escape(json.dumps(report_json(rep, ai)))}</textarea>')
+        out.append(f'<textarea id="reportMd" hidden>'
+                   f'{html.escape(markdown_report(rep, ai))}</textarea>')
     out.append('</div>')
     return "\n".join(out)
 
@@ -1308,6 +1311,17 @@ def test():
         "the key field must never be re-rendered carrying what the user typed"
     assert 'id="delKey"' in ui, "the delete-key control must exist"
     assert 'id="connKey"' in ui, "the connect control must exist"
+
+    # the exports must be usable, not merely present
+    page_html = render_results(analyze(read_text(
+        os.path.join(SAMPLES, "insider.log"))))
+    embedded = re.search(r'<textarea id="reportJson" hidden>(.*?)</textarea>',
+                         page_html, re.S).group(1)
+    parsed = json.loads(html.unescape(embedded))
+    assert parsed["findings"] and parsed["risk"], "embedded JSON export is empty"
+    md = html.unescape(re.search(r'<textarea id="reportMd" hidden>(.*?)</textarea>',
+                                 page_html, re.S).group(1))
+    assert md.startswith("# LogMind report") and "&quot;" not in md,         "the markdown export is still HTML-escaped"
     assert ai_review(analyze("Aug 10 09:00:00 h sshd: hello"), "")[0] is False
 
     # the blind-spot list must exclude what findings already cover
